@@ -549,6 +549,21 @@
     }
     .sg-badge.keim { background: #e3f2fd; color: #1565c0; }
 
+    /* ── BERECHNER ───────────────────────────────── */
+    .calc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255,255,255,.2);
+      font-size: 14px;
+    }
+    .calc-row:last-child { border-bottom: none; }
+    .calc-lbl { opacity: .85; font-size: 13px; }
+    .calc-val { font-size: 18px; font-weight: 700; }
+    .calc-val.big { font-size: 22px; }
+    .calc-unit { font-size: 11px; opacity: .8; margin-left: 3px; }
+
     /* ── FLIESS ──────────────────────────────────── */
     .fliess-beize-toggle {
       display: flex;
@@ -831,6 +846,12 @@
   <button class="sub-tab" id="subtab-psm-lager" onclick="goPsm('lager')">Lager</button>
 </div>
 
+<!-- ══════════ SAATGUT SUB-TABS ══════════ -->
+<div class="sub-tabs" id="saatgut-tabs">
+  <button class="sub-tab active" id="subtab-sg-sorten"    onclick="goSaatgut('sorten')">Sorten</button>
+  <button class="sub-tab"        id="subtab-sg-berechner" onclick="goSaatgut('berechner')">Berechner</button>
+</div>
+
 <!-- ══════════ BONITUR PAGE ══════════ -->
 <div id="page-bonitur" class="page active">
 
@@ -973,8 +994,8 @@
   <div id="lager-list"></div>
 </div>
 
-<!-- ══════════ SAATGUT PAGE ══════════ -->
-<div id="page-saatgut" class="page">
+<!-- ══════════ SAATGUT SORTEN PAGE ══════════ -->
+<div id="page-sg-sorten" class="page">
 
   <!-- Add / Edit form -->
   <div id="saatgut-form-wrap" style="display:none">
@@ -998,6 +1019,66 @@
 
   <button class="btn-add-main" onclick="showSaatgutForm()">+ Sorte hinzufügen</button>
   <div id="saatgut-list"></div>
+</div>
+
+<!-- ══════════ SAATGUT BERECHNER PAGE ══════════ -->
+<div id="page-sg-berechner" class="page">
+  <div class="card">
+    <div class="card-title">🧮 Aussaatmenge berechnen</div>
+
+    <!-- Sorte -->
+    <div class="form-group">
+      <label>Sorte</label>
+      <select class="sd-input" id="calc-sorte" onchange="onCalcSorteChange()" style="margin-bottom:0">
+        <option value="">Sorte wählen…</option>
+      </select>
+    </div>
+
+    <!-- TKG + Keimf Info-Zeile -->
+    <div id="calc-sorte-info" style="display:none; background:var(--green-light); border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:13px; color:var(--green); font-weight:600"></div>
+
+    <!-- Feldaufgang + Pflanzen/m² -->
+    <div style="display:flex; gap:8px; margin-bottom:10px">
+      <div style="flex:1">
+        <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px">Feldaufgang (%)</label>
+        <input class="sd-input" id="calc-feldaufgang" type="number" value="90" min="1" max="100" step="1" style="margin-bottom:0" oninput="runCalc()" />
+      </div>
+      <div style="flex:1">
+        <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px">Pflanzen / m²</label>
+        <input class="sd-input" id="calc-pflanzen" type="number" placeholder="z.B. 300" min="1" step="1" style="margin-bottom:0" oninput="runCalc()" />
+      </div>
+    </div>
+
+    <!-- Saatgutmenge + Beize -->
+    <div style="display:flex; gap:8px; margin-bottom:10px">
+      <div style="flex:1">
+        <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px">Saatgut im Tank (kg)</label>
+        <input class="sd-input" id="calc-kg" type="number" value="1000" min="1" step="1" style="margin-bottom:0" oninput="runCalc()" />
+      </div>
+      <div style="flex:1">
+        <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px">Beizung</label>
+        <div class="fliess-beize-toggle" style="border-radius:8px; height:42px">
+          <button class="fliess-beize-btn active" id="calc-ungebeizt" onclick="setCalcBeize('ungebeizt')" style="height:100%">Ungeb.</button>
+          <button class="fliess-beize-btn"        id="calc-gebeizt"   onclick="setCalcBeize('gebeizt')"   style="height:100%">Geb.</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fließfaktor -->
+    <div id="calc-ff-wrap">
+      <label style="font-size:12px; color:var(--muted); font-weight:600; display:block; margin-bottom:4px">Fließfaktor</label>
+      <input class="sd-input" id="calc-ff" type="number" placeholder="aus Stammdaten oder manuell" step="0.001" min="0" style="margin-bottom:0" oninput="runCalc()" />
+      <div id="calc-ff-hint" style="font-size:11px; color:var(--muted); margin-top:3px"></div>
+    </div>
+  </div>
+
+  <!-- Ergebnis -->
+  <div id="calc-result" style="display:none">
+    <div class="card" style="background:var(--green); color:#fff; margin-bottom:0">
+      <div class="card-title" style="color:#fff; border-bottom-color:rgba(255,255,255,.2)">📊 Ergebnis</div>
+      <div id="calc-result-inner"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════ FELDER PAGE ══════════ -->
@@ -1240,9 +1321,10 @@ let S = {
 // NAVIGATION
 // ════════════════════════════════════════════════════════════════
 const SECTION_LABELS = { monitor: "Bonitur", psm: "PSM", saatgut: "Saatgut", stammdaten: "Stammdaten" };
-let lastMonitorPage = "bonitur";
-let lastStammPage   = "felder";
-let lastPsmPage     = "suche";
+let lastMonitorPage  = "bonitur";
+let lastStammPage    = "felder";
+let lastPsmPage      = "suche";
+let lastSaatgutPage  = "sorten";
 
 function goPage(section) {
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
@@ -1253,6 +1335,7 @@ function goPage(section) {
   document.getElementById("monitor-tabs").classList.remove("visible");
   document.getElementById("stamm-tabs").classList.remove("visible");
   document.getElementById("psm-tabs").classList.remove("visible");
+  document.getElementById("saatgut-tabs").classList.remove("visible");
 
   if (section === "monitor") {
     document.getElementById("monitor-tabs").classList.add("visible");
@@ -1263,10 +1346,24 @@ function goPage(section) {
   } else if (section === "psm") {
     document.getElementById("psm-tabs").classList.add("visible");
     goPsm(lastPsmPage);
+  } else if (section === "saatgut") {
+    document.getElementById("saatgut-tabs").classList.add("visible");
+    goSaatgut(lastSaatgutPage);
   } else {
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     document.getElementById("page-" + section).classList.add("active");
   }
+}
+
+function goSaatgut(sub) {
+  lastSaatgutPage = sub;
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("page-sg-" + sub).classList.add("active");
+  document.querySelectorAll("#saatgut-tabs .sub-tab").forEach(t => t.classList.remove("active"));
+  const subBtn = document.getElementById("subtab-sg-" + sub);
+  if (subBtn) subBtn.classList.add("active");
+  if (sub === "sorten")    renderSaatgut();
+  if (sub === "berechner") initBerechner();
 }
 
 function goPsm(sub) {
@@ -2755,12 +2852,109 @@ function renderLager() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// SAATGUT BERECHNER
+// ════════════════════════════════════════════════════════════════
+
+let calcBeize = "ungebeizt";
+
+function setCalcBeize(val) {
+  calcBeize = val;
+  document.getElementById("calc-ungebeizt").classList.toggle("active", val === "ungebeizt");
+  document.getElementById("calc-gebeizt").classList.toggle("active", val === "gebeizt");
+  fillCalcFliess();
+  runCalc();
+}
+
+function initBerechner() {
+  const sel = document.getElementById("calc-sorte");
+  const data = loadSaatgut();
+  sel.innerHTML = '<option value="">Sorte wählen…</option>' +
+    data.sort((a,b) => a.sorte.localeCompare(b.sorte))
+        .map(s => `<option value="${s.id}">${s.sorte} (${s.fruchtart})</option>`).join("");
+  document.getElementById("calc-result").style.display = "none";
+}
+
+function onCalcSorteChange() {
+  const id   = document.getElementById("calc-sorte").value;
+  const info = document.getElementById("calc-sorte-info");
+  if (!id) { info.style.display = "none"; document.getElementById("calc-result").style.display = "none"; return; }
+  const s = loadSaatgut().find(s => s.id === id);
+  if (!s) return;
+  info.style.display = "block";
+  info.textContent = `TKG: ${s.tkg.toLocaleString("de-DE")} g  ·  Keimfähigkeit: ${s.keimfaehigkeit} %`;
+  fillCalcFliess();
+  runCalc();
+}
+
+function fillCalcFliess() {
+  const id = document.getElementById("calc-sorte").value;
+  const hint = document.getElementById("calc-ff-hint");
+  const input = document.getElementById("calc-ff");
+  if (!id) { hint.textContent = ""; return; }
+  const sorte = loadSaatgut().find(s => s.id === id);
+  if (!sorte) return;
+  const ff = loadFliess().find(f => f.fruchtart === sorte.fruchtart && f.beize === calcBeize);
+  if (ff) {
+    input.value = ff.faktor;
+    hint.textContent = `✓ Aus Stammdaten: ${sorte.fruchtart} / ${ff.beize === "gebeizt" ? "Gebeizt" : "Ungebeizt"}`;
+    hint.style.color = "var(--green)";
+  } else {
+    hint.textContent = `Kein Eintrag für ${sorte.fruchtart} / ${calcBeize} – bitte manuell eingeben`;
+    hint.style.color = "var(--danger)";
+  }
+}
+
+function runCalc() {
+  const id          = document.getElementById("calc-sorte").value;
+  const feldaufgang = parseFloat(document.getElementById("calc-feldaufgang").value);
+  const pflanzen    = parseFloat(document.getElementById("calc-pflanzen").value);
+  const tankKg      = parseFloat(document.getElementById("calc-kg").value);
+  const ff          = parseFloat(document.getElementById("calc-ff").value);
+  const result      = document.getElementById("calc-result");
+
+  if (!id || isNaN(feldaufgang) || isNaN(pflanzen) || pflanzen <= 0) {
+    result.style.display = "none"; return;
+  }
+  const sorte = loadSaatgut().find(s => s.id === id);
+  if (!sorte) return;
+
+  // Aussaatmenge [kg/ha] = (Pflanzen/m² × TKG [g]) / (Keimfähigkeit/100 × Feldaufgang/100 × 100)
+  const aussaat = (pflanzen * sorte.tkg) / ((sorte.keimfaehigkeit / 100) * (feldaufgang / 100) * 100);
+  const flaeche = (!isNaN(tankKg) && tankKg > 0) ? tankKg / aussaat : null;
+  const stellung = (!isNaN(ff) && ff > 0) ? aussaat * ff : null;
+
+  const fmt = (n, dec=1) => n.toLocaleString("de-DE", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+
+  let rows = `
+    <div class="calc-row">
+      <span class="calc-lbl">Aussaatmenge</span>
+      <span><span class="calc-val big">${fmt(aussaat)}</span><span class="calc-unit">kg/ha</span></span>
+    </div>`;
+
+  if (stellung !== null) {
+    rows += `<div class="calc-row">
+      <span class="calc-lbl">Stellung (Faktor × kg/ha)</span>
+      <span><span class="calc-val big">${fmt(stellung, 2)}</span></span>
+    </div>`;
+  }
+
+  if (flaeche !== null) {
+    rows += `<div class="calc-row">
+      <span class="calc-lbl">Fläche mit ${fmt(tankKg,0)} kg</span>
+      <span><span class="calc-val big">${fmt(flaeche)}</span><span class="calc-unit">ha</span></span>
+    </div>`;
+  }
+
+  document.getElementById("calc-result-inner").innerHTML = rows;
+  result.style.display = "block";
+}
+
+// ════════════════════════════════════════════════════════════════
 // BOOT
 // ════════════════════════════════════════════════════════════════
 initForm();
 goPage("monitor");
 if (typeof PSM !== "undefined") initPsmPage();
-renderSaatgut();
 </script>
 </body>
 </html>
