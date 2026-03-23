@@ -517,6 +517,82 @@
     }
     .lager-gesamt strong { color: var(--green); }
 
+    /* ── SAATGUT ─────────────────────────────────── */
+    .sg-group-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      padding: 10px 4px 4px;
+    }
+    .sg-item {
+      background: #fff;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      padding: 12px 14px;
+      gap: 10px;
+    }
+    .sg-item-info { flex: 1; min-width: 0; }
+    .sg-item-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .sg-item-meta { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; }
+    .sg-badge {
+      background: var(--green-light);
+      color: var(--green);
+      border-radius: 6px;
+      padding: 1px 7px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .sg-badge.keim { background: #e3f2fd; color: #1565c0; }
+
+    /* ── FLIESS ──────────────────────────────────── */
+    .fliess-beize-toggle {
+      display: flex;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .fliess-beize-btn {
+      flex: 1;
+      padding: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .fliess-beize-btn.active {
+      background: var(--green);
+      color: #fff;
+    }
+    .ff-item {
+      background: #fff;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      padding: 12px 14px;
+      gap: 10px;
+    }
+    .ff-item-info { flex: 1; }
+    .ff-item-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .ff-item-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ff-badge {
+      background: var(--green-light);
+      color: var(--green);
+      border-radius: 6px;
+      padding: 2px 9px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     /* ── STAMMDATEN ──────────────────────────────── */
     .sd-wrap {
       background: #fff;
@@ -737,8 +813,9 @@
 
 <!-- ══════════ STAMMDATEN SUB-TABS ══════════ -->
 <div class="sub-tabs" id="stamm-tabs">
-  <button class="sub-tab active" id="subtab-felder"   onclick="goStamm('felder')">Felder</button>
-  <button class="sub-tab"        id="subtab-kulturen" onclick="goStamm('kulturen')">Kulturen</button>
+  <button class="sub-tab active" id="subtab-felder"        onclick="goStamm('felder')">Felder</button>
+  <button class="sub-tab"        id="subtab-kulturen"      onclick="goStamm('kulturen')">Kulturen</button>
+  <button class="sub-tab"        id="subtab-fliess"        onclick="goStamm('fliess')">Fließfaktoren</button>
 </div>
 
 <!-- ══════════ MONITOR SUB-TABS ══════════ -->
@@ -898,11 +975,29 @@
 
 <!-- ══════════ SAATGUT PAGE ══════════ -->
 <div id="page-saatgut" class="page">
-  <div class="placeholder-page">
-    <div class="big-icon">🌱</div>
-    <h2>Saatgut</h2>
-    <p>Diese Funktion ist in Vorbereitung.<br>Hier kannst du bald Saatgutmengen, Sorten und Aussaatdaten verwalten.</p>
+
+  <!-- Add / Edit form -->
+  <div id="saatgut-form-wrap" style="display:none">
+    <div class="sd-form-card">
+      <div class="card-title" id="saatgut-form-title">🌱 Neue Sorte</div>
+      <input type="hidden" id="sg-edit-id" value="" />
+      <select class="sd-input" id="sg-fruchtart" style="margin-bottom:8px">
+        <option value="">Fruchtart wählen…</option>
+      </select>
+      <input class="sd-input" id="sg-sorte"       type="text"   placeholder="Sortenname (z.B. RGT Reform)" />
+      <div style="display:flex;gap:8px">
+        <input class="sd-input" id="sg-tkg"          type="number" placeholder="TKG (g)" step="0.1" min="0" style="flex:1;margin-bottom:8px" />
+        <input class="sd-input" id="sg-keimfaehigkeit" type="number" placeholder="Keimf. (%)" min="0" max="100" step="1" style="flex:1;margin-bottom:8px" />
+      </div>
+      <div class="sd-btn-row">
+        <button class="btn-ok"     onclick="saveSaatgut()">Speichern</button>
+        <button class="btn-cancel" onclick="hideSaatgutForm()">Abbrechen</button>
+      </div>
+    </div>
   </div>
+
+  <button class="btn-add-main" onclick="showSaatgutForm()">+ Sorte hinzufügen</button>
+  <div id="saatgut-list"></div>
 </div>
 
 <!-- ══════════ FELDER PAGE ══════════ -->
@@ -980,6 +1075,32 @@
 </div>
 
 <!-- ══════════ KULTUREN PAGE ══════════ -->
+<!-- ══════════ FLIESS PAGE ══════════ -->
+<div id="page-fliess" class="page">
+
+  <div id="fliess-form-wrap" style="display:none">
+    <div class="sd-form-card">
+      <div class="card-title" id="fliess-form-title">⚙️ Neuer Fließfaktor</div>
+      <input type="hidden" id="ff-edit-id" value="" />
+      <select class="sd-input" id="ff-fruchtart" style="margin-bottom:8px">
+        <option value="">Fruchtart wählen…</option>
+      </select>
+      <div class="fliess-beize-toggle" style="margin-bottom:10px">
+        <button class="fliess-beize-btn active" id="ff-ungebeizt" onclick="setBeize('ungebeizt')">Ungebeizt</button>
+        <button class="fliess-beize-btn"        id="ff-gebeizt"   onclick="setBeize('gebeizt')">Gebeizt</button>
+      </div>
+      <input class="sd-input" id="ff-faktor" type="number" placeholder="Fließfaktor (z.B. 0.95)" step="0.01" min="0" />
+      <div class="sd-btn-row">
+        <button class="btn-ok"     onclick="saveFliess()">Speichern</button>
+        <button class="btn-cancel" onclick="hideFliessForm()">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add-main" onclick="showFliessForm()">+ Fließfaktor hinzufügen</button>
+  <div id="fliess-list"></div>
+</div>
+
 <div id="page-kulturen" class="page">
   <div id="kulturen-form-wrap" style="display:none">
     <div class="sd-form-card">
@@ -1179,6 +1300,7 @@ function goStamm(sub) {
   if (subBtn) subBtn.classList.add("active");
   if (sub === "felder")   renderSdFelder();
   if (sub === "kulturen") renderSdKulturen();
+  if (sub === "fliess")   { populateFliessSelect(); renderFliess(); }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2242,6 +2364,239 @@ function saveSdKultur() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// SAATGUT
+// ════════════════════════════════════════════════════════════════
+
+function loadSaatgut() {
+  try { return JSON.parse(localStorage.getItem("saatgut_sorten") || "[]"); } catch { return []; }
+}
+function saveSaatgutData(data) { localStorage.setItem("saatgut_sorten", JSON.stringify(data)); }
+
+function getAllFruchtarten() {
+  const base = Object.keys(CONFIG);
+  const custom = loadCustomKulturen();
+  const deleted = loadDeletedKulturen();
+  return [...new Set([...base, ...custom])].filter(k => !deleted.includes(k)).sort();
+}
+
+function populateSaatgutSelect() {
+  const sel = document.getElementById("sg-fruchtart");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Fruchtart wählen…</option>' +
+    getAllFruchtarten().map(k => `<option value="${k}">${k}</option>`).join("");
+  if (current) sel.value = current;
+}
+
+function showSaatgutForm(id) {
+  populateSaatgutSelect();
+  const wrap = document.getElementById("saatgut-form-wrap");
+  document.getElementById("saatgut-form-title").textContent = id ? "🌱 Sorte bearbeiten" : "🌱 Neue Sorte";
+  if (id) {
+    const item = loadSaatgut().find(s => s.id === id);
+    if (item) {
+      document.getElementById("sg-edit-id").value = id;
+      document.getElementById("sg-fruchtart").value = item.fruchtart;
+      document.getElementById("sg-sorte").value = item.sorte;
+      document.getElementById("sg-tkg").value = item.tkg;
+      document.getElementById("sg-keimfaehigkeit").value = item.keimfaehigkeit;
+    }
+  } else {
+    document.getElementById("sg-edit-id").value = "";
+    document.getElementById("sg-fruchtart").value = "";
+    document.getElementById("sg-sorte").value = "";
+    document.getElementById("sg-tkg").value = "";
+    document.getElementById("sg-keimfaehigkeit").value = "";
+  }
+  wrap.style.display = "block";
+  wrap.scrollIntoView({ behavior: "smooth" });
+}
+
+function hideSaatgutForm() {
+  document.getElementById("saatgut-form-wrap").style.display = "none";
+}
+
+function saveSaatgut() {
+  const fruchtart      = document.getElementById("sg-fruchtart").value.trim();
+  const sorte          = document.getElementById("sg-sorte").value.trim();
+  const tkg            = parseFloat(document.getElementById("sg-tkg").value);
+  const keimfaehigkeit = parseInt(document.getElementById("sg-keimfaehigkeit").value, 10);
+  const editId         = document.getElementById("sg-edit-id").value;
+
+  if (!fruchtart) { toast("Bitte Fruchtart wählen"); return; }
+  if (!sorte)     { toast("Bitte Sortenname eingeben"); return; }
+  if (isNaN(tkg) || tkg <= 0) { toast("Bitte gültiges TKG eingeben"); return; }
+  if (isNaN(keimfaehigkeit) || keimfaehigkeit < 0 || keimfaehigkeit > 100) { toast("Keimfähigkeit: 0–100 %"); return; }
+
+  const data = loadSaatgut();
+  if (editId) {
+    const idx = data.findIndex(s => s.id === editId);
+    if (idx !== -1) data[idx] = { id: editId, fruchtart, sorte, tkg, keimfaehigkeit };
+  } else {
+    data.push({ id: Date.now().toString(), fruchtart, sorte, tkg, keimfaehigkeit });
+  }
+  saveSaatgutData(data);
+  hideSaatgutForm();
+  renderSaatgut();
+  toast("✓ Sorte gespeichert");
+}
+
+function deleteSaatgut(id) {
+  saveSaatgutData(loadSaatgut().filter(s => s.id !== id));
+  renderSaatgut();
+  toast("Sorte gelöscht");
+}
+
+function renderSaatgut() {
+  const container = document.getElementById("saatgut-list");
+  if (!container) return;
+  const data = loadSaatgut();
+  if (!data.length) {
+    container.innerHTML = `<div class="lager-empty">
+      <div style="font-size:40px;margin-bottom:10px">🌱</div>
+      <p>Noch keine Sorten angelegt.<br>Füge deine erste Sorte hinzu.</p>
+    </div>`;
+    return;
+  }
+  // group by Fruchtart
+  const groups = {};
+  data.forEach(s => { (groups[s.fruchtart] = groups[s.fruchtart] || []).push(s); });
+  const html = Object.keys(groups).sort().map(fa => {
+    const items = groups[fa].sort((a,b) => a.sorte.localeCompare(b.sorte));
+    return `<div class="sg-group-label">🌾 ${fa}</div>` +
+      items.map(s => `
+        <div class="sg-item">
+          <div class="sg-item-info">
+            <div class="sg-item-name">${s.sorte}</div>
+            <div class="sg-item-meta">
+              <span class="sg-badge">TKG ${s.tkg.toLocaleString("de-DE")} g</span>
+              <span class="sg-badge keim">Keimf. ${s.keimfaehigkeit} %</span>
+            </div>
+          </div>
+          <div class="lager-item-actions">
+            <button class="lager-btn-edit" onclick="showSaatgutForm('${s.id}')">✏️</button>
+            <button class="lager-btn-del"  onclick="deleteSaatgut('${s.id}')">🗑</button>
+          </div>
+        </div>`).join("");
+  }).join("");
+  container.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════
+// FLIESS­FAKTOREN
+// ════════════════════════════════════════════════════════════════
+
+let ffBeize = "ungebeizt";
+
+function loadFliess() {
+  try { return JSON.parse(localStorage.getItem("fliess_faktoren") || "[]"); } catch { return []; }
+}
+function saveFliessData(data) { localStorage.setItem("fliess_faktoren", JSON.stringify(data)); }
+
+function setBeize(val) {
+  ffBeize = val;
+  document.getElementById("ff-ungebeizt").classList.toggle("active", val === "ungebeizt");
+  document.getElementById("ff-gebeizt").classList.toggle("active", val === "gebeizt");
+}
+
+function populateFliessSelect() {
+  const sel = document.getElementById("ff-fruchtart");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Fruchtart wählen…</option>' +
+    getAllFruchtarten().map(k => `<option value="${k}">${k}</option>`).join("");
+  if (current) sel.value = current;
+}
+
+function showFliessForm(id) {
+  populateFliessSelect();
+  document.getElementById("fliess-form-title").textContent = id ? "⚙️ Fließfaktor bearbeiten" : "⚙️ Neuer Fließfaktor";
+  if (id) {
+    const item = loadFliess().find(f => f.id === id);
+    if (item) {
+      document.getElementById("ff-edit-id").value = id;
+      document.getElementById("ff-fruchtart").value = item.fruchtart;
+      document.getElementById("ff-faktor").value = item.faktor;
+      setBeize(item.beize);
+    }
+  } else {
+    document.getElementById("ff-edit-id").value = "";
+    document.getElementById("ff-fruchtart").value = "";
+    document.getElementById("ff-faktor").value = "";
+    setBeize("ungebeizt");
+  }
+  const wrap = document.getElementById("fliess-form-wrap");
+  wrap.style.display = "block";
+  wrap.scrollIntoView({ behavior: "smooth" });
+}
+
+function hideFliessForm() {
+  document.getElementById("fliess-form-wrap").style.display = "none";
+}
+
+function saveFliess() {
+  const fruchtart = document.getElementById("ff-fruchtart").value;
+  const faktor    = parseFloat(document.getElementById("ff-faktor").value);
+  const editId    = document.getElementById("ff-edit-id").value;
+
+  if (!fruchtart) { toast("Bitte Fruchtart wählen"); return; }
+  if (isNaN(faktor) || faktor <= 0) { toast("Bitte gültigen Fließfaktor eingeben"); return; }
+
+  const data = loadFliess();
+  if (editId) {
+    const idx = data.findIndex(f => f.id === editId);
+    if (idx !== -1) data[idx] = { id: editId, fruchtart, beize: ffBeize, faktor };
+  } else {
+    // prevent duplicate Fruchtart+Beize combo
+    const dup = data.find(f => f.fruchtart === fruchtart && f.beize === ffBeize);
+    if (dup) { toast("Dieser Eintrag existiert bereits – bitte bearbeiten"); return; }
+    data.push({ id: Date.now().toString(), fruchtart, beize: ffBeize, faktor });
+  }
+  saveFliessData(data);
+  hideFliessForm();
+  renderFliess();
+  toast("✓ Fließfaktor gespeichert");
+}
+
+function deleteFliess(id) {
+  saveFliessData(loadFliess().filter(f => f.id !== id));
+  renderFliess();
+  toast("Eintrag gelöscht");
+}
+
+function renderFliess() {
+  const container = document.getElementById("fliess-list");
+  if (!container) return;
+  const data = loadFliess();
+  if (!data.length) {
+    container.innerHTML = `<div class="lager-empty">
+      <div style="font-size:36px;margin-bottom:10px">⚙️</div>
+      <p>Noch keine Fließfaktoren hinterlegt.<br>Füge den ersten Eintrag hinzu.</p>
+    </div>`;
+    return;
+  }
+  const groups = {};
+  data.forEach(f => { (groups[f.fruchtart] = groups[f.fruchtart] || []).push(f); });
+  const html = Object.keys(groups).sort().map(fa => {
+    const items = groups[fa].sort((a,b) => a.beize.localeCompare(b.beize));
+    return `<div class="sg-group-label">🌾 ${fa}</div>` +
+      items.map(f => `
+        <div class="ff-item">
+          <div class="ff-item-info">
+            <div class="ff-item-name">${f.beize === "gebeizt" ? "🔵 Gebeizt" : "⚪ Ungebeizt"}</div>
+            <div class="ff-item-meta">Fließfaktor</div>
+          </div>
+          <span class="ff-badge">${f.faktor.toLocaleString("de-DE", {minimumFractionDigits:2, maximumFractionDigits:4})}</span>
+          <div class="lager-item-actions">
+            <button class="lager-btn-edit" onclick="showFliessForm('${f.id}')">✏️</button>
+            <button class="lager-btn-del"  onclick="deleteFliess('${f.id}')">🗑</button>
+          </div>
+        </div>`).join("");
+  }).join("");
+  container.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════
 // PSM LAGER
 // ════════════════════════════════════════════════════════════════
 
@@ -2405,6 +2760,7 @@ function renderLager() {
 initForm();
 goPage("monitor");
 if (typeof PSM !== "undefined") initPsmPage();
+renderSaatgut();
 </script>
 </body>
 </html>
