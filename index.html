@@ -454,6 +454,69 @@
     }
     .psm-count-bar strong { color: var(--green); }
 
+    /* ── PSM LAGER ────────────────────────────────── */
+    .lager-item {
+      background: #fff;
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      padding: 13px 15px;
+      gap: 12px;
+    }
+    .lager-item-info { flex: 1; min-width: 0; }
+    .lager-item-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lager-item-menge {
+      font-size: 13px;
+      color: var(--green);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .lager-item-menge.low { color: var(--danger); }
+    .lager-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .lager-btn-edit {
+      background: var(--green-light);
+      color: var(--green);
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .lager-btn-del {
+      background: #fdecea;
+      color: var(--danger);
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .lager-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .lager-gesamt {
+      text-align: center;
+      padding: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .lager-gesamt strong { color: var(--green); }
+
     /* ── STAMMDATEN ──────────────────────────────── */
     .sd-wrap {
       background: #fff;
@@ -685,6 +748,12 @@
   <button class="sub-tab" id="subtab-diagramme" onclick="goMonitor('diagramme')">Diagramme</button>
 </div>
 
+<!-- ══════════ PSM SUB-TABS ══════════ -->
+<div class="sub-tabs" id="psm-tabs">
+  <button class="sub-tab active" id="subtab-psm-suche" onclick="goPsm('suche')">Suche</button>
+  <button class="sub-tab" id="subtab-psm-lager" onclick="goPsm('lager')">Lager</button>
+</div>
+
 <!-- ══════════ BONITUR PAGE ══════════ -->
 <div id="page-bonitur" class="page active">
 
@@ -780,8 +849,8 @@
   </div>
 </div>
 
-<!-- ══════════ PSM PAGE ══════════ -->
-<div id="page-psm" class="page">
+<!-- ══════════ PSM SUCHE PAGE ══════════ -->
+<div id="page-psm-suche" class="page">
 
   <div class="card">
     <div class="card-title">🧪 Wirkstoff suchen</div>
@@ -803,6 +872,28 @@
   </div>
 
   <div id="psm-results"></div>
+</div>
+
+<!-- ══════════ PSM LAGER PAGE ══════════ -->
+<div id="page-psm-lager" class="page">
+
+  <div class="card">
+    <div class="card-title">🏪 Mittel hinzufügen</div>
+    <div class="psm-search-wrap">
+      <input class="psm-input" id="lager-mittel-input" type="text"
+        placeholder="Handelsname suchen…"
+        autocomplete="off" oninput="onLagerMittelInput()" onkeydown="onLagerMittelKey(event)" />
+      <div class="autocomplete-list" id="lager-mittel-ac" style="display:none"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>Menge (Liter)</label>
+      <input class="psm-input" id="lager-menge-input" type="number"
+        placeholder="z.B. 5" min="0" step="0.1" style="margin-bottom:0" />
+    </div>
+    <button class="btn-confirm" style="width:100%;margin-top:12px" onclick="addLagerEintrag()">+ Hinzufügen</button>
+  </div>
+
+  <div id="lager-list"></div>
 </div>
 
 <!-- ══════════ SAATGUT PAGE ══════════ -->
@@ -1030,6 +1121,7 @@ let S = {
 const SECTION_LABELS = { monitor: "Bonitur", psm: "PSM", saatgut: "Saatgut", stammdaten: "Stammdaten" };
 let lastMonitorPage = "bonitur";
 let lastStammPage   = "felder";
+let lastPsmPage     = "suche";
 
 function goPage(section) {
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
@@ -1039,6 +1131,7 @@ function goPage(section) {
 
   document.getElementById("monitor-tabs").classList.remove("visible");
   document.getElementById("stamm-tabs").classList.remove("visible");
+  document.getElementById("psm-tabs").classList.remove("visible");
 
   if (section === "monitor") {
     document.getElementById("monitor-tabs").classList.add("visible");
@@ -1046,11 +1139,24 @@ function goPage(section) {
   } else if (section === "stammdaten") {
     document.getElementById("stamm-tabs").classList.add("visible");
     goStamm(lastStammPage);
+  } else if (section === "psm") {
+    document.getElementById("psm-tabs").classList.add("visible");
+    goPsm(lastPsmPage);
   } else {
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     document.getElementById("page-" + section).classList.add("active");
-    if (section === "psm" && typeof PSM !== "undefined") initPsmPage();
   }
+}
+
+function goPsm(sub) {
+  lastPsmPage = sub;
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("page-psm-" + sub).classList.add("active");
+  document.querySelectorAll("#psm-tabs .sub-tab").forEach(t => t.classList.remove("active"));
+  const subBtn = document.getElementById("subtab-psm-" + sub);
+  if (subBtn) subBtn.classList.add("active");
+  if (sub === "suche" && typeof PSM !== "undefined") initPsmPage();
+  if (sub === "lager") renderLager();
 }
 
 function goMonitor(sub) {
@@ -2133,6 +2239,164 @@ function saveSdKultur() {
   renderSdKulturen();
   renderKulturChips();
   toast("✓ Kultur gespeichert");
+}
+
+// ════════════════════════════════════════════════════════════════
+// PSM LAGER
+// ════════════════════════════════════════════════════════════════
+
+function loadLager() {
+  try { return JSON.parse(localStorage.getItem("psm_lager") || "[]"); } catch { return []; }
+}
+function saveLager(data) {
+  localStorage.setItem("psm_lager", JSON.stringify(data));
+}
+
+let lagerAcFocusIdx = -1;
+let lagerAcInited = false;
+
+function initLagerAc() {
+  if (lagerAcInited) return;
+  lagerAcInited = true;
+  document.addEventListener("click", e => {
+    if (!e.target.closest("#lager-mittel-input") && !e.target.closest("#lager-mittel-ac")) {
+      document.getElementById("lager-mittel-ac").style.display = "none";
+    }
+  });
+}
+
+function onLagerMittelInput() {
+  if (typeof PSM === "undefined") return;
+  initLagerAc();
+  const q = document.getElementById("lager-mittel-input").value.trim().toLowerCase();
+  const ac = document.getElementById("lager-mittel-ac");
+  lagerAcFocusIdx = -1;
+
+  if (q.length < 2) { ac.style.display = "none"; return; }
+
+  const matches = PSM.n
+    .filter(n => n.toLowerCase().includes(q))
+    .slice(0, 20);
+
+  if (!matches.length) { ac.style.display = "none"; return; }
+
+  ac.innerHTML = matches.map(n => {
+    const hi = n.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")})`, "gi"),
+      '<span class="ac-match">$1</span>');
+    return `<div class="ac-item" data-val="${n.replace(/"/g,'&quot;')}">${hi}</div>`;
+  }).join("");
+
+  ac.querySelectorAll(".ac-item").forEach(item => {
+    item.addEventListener("click", () => {
+      document.getElementById("lager-mittel-input").value = item.dataset.val;
+      ac.style.display = "none";
+      document.getElementById("lager-menge-input").focus();
+    });
+  });
+
+  ac.style.display = "block";
+}
+
+function onLagerMittelKey(e) {
+  const ac = document.getElementById("lager-mittel-ac");
+  const items = ac.querySelectorAll(".ac-item");
+  if (!items.length || ac.style.display === "none") {
+    if (e.key === "Enter") document.getElementById("lager-menge-input").focus();
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    lagerAcFocusIdx = Math.min(lagerAcFocusIdx + 1, items.length - 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    lagerAcFocusIdx = Math.max(lagerAcFocusIdx - 1, -1);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (lagerAcFocusIdx >= 0) {
+      document.getElementById("lager-mittel-input").value = items[lagerAcFocusIdx].dataset.val;
+      ac.style.display = "none";
+      document.getElementById("lager-menge-input").focus();
+    }
+    return;
+  } else if (e.key === "Escape") {
+    ac.style.display = "none";
+    return;
+  }
+  items.forEach((item, i) => item.classList.toggle("focused", i === lagerAcFocusIdx));
+  if (lagerAcFocusIdx >= 0) items[lagerAcFocusIdx].scrollIntoView({ block: "nearest" });
+}
+
+function addLagerEintrag() {
+  const name  = document.getElementById("lager-mittel-input").value.trim();
+  const menge = parseFloat(document.getElementById("lager-menge-input").value);
+
+  if (!name) { toast("Bitte ein Mittel eingeben"); return; }
+  if (isNaN(menge) || menge < 0) { toast("Bitte eine gültige Menge eingeben"); return; }
+
+  const lager = loadLager();
+  const existing = lager.find(e => e.name.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    existing.menge = menge;
+    toast("✓ Bestand aktualisiert");
+  } else {
+    lager.push({ id: Date.now().toString(), name, menge });
+    toast("✓ Mittel hinzugefügt");
+  }
+  saveLager(lager);
+
+  document.getElementById("lager-mittel-input").value = "";
+  document.getElementById("lager-menge-input").value = "";
+  renderLager();
+}
+
+function editLagerEintrag(id) {
+  const lager = loadLager();
+  const item = lager.find(e => e.id === id);
+  if (!item) return;
+  document.getElementById("lager-mittel-input").value = item.name;
+  document.getElementById("lager-menge-input").value = item.menge;
+  document.getElementById("lager-mittel-input").focus();
+}
+
+function deleteLagerEintrag(id) {
+  const lager = loadLager().filter(e => e.id !== id);
+  saveLager(lager);
+  renderLager();
+  toast("Eintrag gelöscht");
+}
+
+function renderLager() {
+  const container = document.getElementById("lager-list");
+  if (!container) return;
+  const lager = loadLager();
+
+  if (!lager.length) {
+    container.innerHTML = `<div class="lager-empty">
+      <div style="font-size:40px;margin-bottom:10px">🏪</div>
+      <p>Noch keine Mittel im Lager.<br>Füge dein erstes Pflanzenschutzmittel hinzu.</p>
+    </div>`;
+    return;
+  }
+
+  const gesamt = lager.reduce((s, e) => s + e.menge, 0);
+  const sorted = [...lager].sort((a, b) => a.name.localeCompare(b.name));
+
+  container.innerHTML =
+    `<div class="lager-gesamt"><strong>${lager.length}</strong> Mittel · Gesamt <strong>${gesamt.toLocaleString("de-DE", {maximumFractionDigits:1})} L</strong></div>` +
+    sorted.map(item => {
+      const mengeClass = item.menge <= 1 ? "lager-item-menge low" : "lager-item-menge";
+      const mengeStr = item.menge.toLocaleString("de-DE", {maximumFractionDigits:2}) + " L";
+      return `<div class="lager-item">
+        <div class="lager-item-info">
+          <div class="lager-item-name">${item.name}</div>
+          <div class="${mengeClass}">${mengeStr}${item.menge <= 1 ? " ⚠ Nachbestellen" : ""}</div>
+        </div>
+        <div class="lager-item-actions">
+          <button class="lager-btn-edit" onclick="editLagerEintrag('${item.id}')">✏️</button>
+          <button class="lager-btn-del"  onclick="deleteLagerEintrag('${item.id}')">🗑</button>
+        </div>
+      </div>`;
+    }).join("");
 }
 
 // ════════════════════════════════════════════════════════════════
