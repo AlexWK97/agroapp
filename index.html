@@ -902,10 +902,12 @@
     .fpr-name-wrap { position: relative; margin-bottom: 5px; }
     .fpr-name-wrap .sd-input { width: 100%; box-sizing: border-box; margin-bottom: 0; }
     .fpr-max-hint {
-      font-size: 11px; color: var(--green); font-weight: 600;
-      min-height: 14px; margin-bottom: 5px;
+      font-size: 12px; color: var(--green); font-weight: 700;
+      min-height: 0; margin-bottom: 5px; padding: 4px 8px;
+      background: #e8f5e9; border-radius: 6px;
       display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     }
+    .fpr-max-hint:empty { display: none; }
     .max-fill-btn {
       padding: 2px 9px; background: var(--green); color: #fff;
       border: none; border-radius: 20px; font-size: 11px; font-weight: 700;
@@ -3243,16 +3245,30 @@ const _massAcFocus = {};
 
 function kulturMatches(userKultur, psmKultur) {
   if (!psmKultur) return false;
-  const uk = userKultur.toLowerCase();
-  const pk = psmKultur.toLowerCase();
+  const uk = userKultur.toLowerCase().trim();
+  const pk = psmKultur.toLowerCase().trim();
+  if (uk === pk) return true;
   if (uk.includes(pk) || pk.includes(uk)) return true;
-  // Suffix-Abgleich für deutsche Komposita z.B. "Winterweizen" ↔ "Winterweichweizen"
-  const psmWords = pk.split(/\s+/);
+  // Season-aware suffix matching for German compound words
+  // "Winterweizen" ↔ "Winterweichweizen", but NOT "Sommerweizen" ↔ "Winterweichweizen"
+  const SEASONS = ['winter', 'sommer'];
+  function stripSeason(s) {
+    for (const se of SEASONS) if (s.startsWith(se)) return { season: se, core: s.slice(se.length) };
+    return { season: null, core: s };
+  }
   for (const uw of uk.split(/\s+/)) {
-    for (let len = 4; len <= uw.length; len++) {
-      const suffix = uw.slice(-len);
-      for (const pw of psmWords) {
-        if (pw.includes(suffix) || suffix.includes(pw)) return true;
+    for (const pw of pk.split(/\s+/)) {
+      if (uw === pw) return true;
+      const uP = stripSeason(uw), pP = stripSeason(pw);
+      // Conflicting seasons → skip (Sommer ≠ Winter)
+      if (uP.season && pP.season && uP.season !== pP.season) continue;
+      const uc = uP.core, pc = pP.core;
+      if (!uc || !pc) continue;
+      if (uc.includes(pc) || pc.includes(uc)) return true;
+      // Suffix match on cores: "weizen" in "weichweizen"
+      for (let len = 4; len <= uc.length; len++) {
+        const suf = uc.slice(-len);
+        if (pc.includes(suf) || suf.includes(pc)) return true;
       }
     }
   }
