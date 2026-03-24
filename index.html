@@ -869,6 +869,64 @@
     }
     @keyframes toastIn  { from { opacity:0; transform: translateX(-50%) translateY(12px); } }
     @keyframes toastOut { to   { opacity:0; transform: translateX(-50%) translateY(-8px); } }
+
+    /* === PSM Maßnahmen Stammdaten === */
+    .mass-kultur-group { margin-bottom: 18px; }
+    .mass-kultur-label {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px;
+      padding: 0 2px 6px; display: block;
+    }
+    .massnahme-card {
+      background: #fff; border-radius: var(--radius);
+      margin-bottom: 8px; border: 1px solid var(--border); overflow: hidden;
+    }
+    .massnahme-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px 8px; background: var(--green-lite);
+    }
+    .massnahme-name { flex: 1; font-weight: 700; font-size: 15px; color: var(--green); }
+    .massnahme-produkt-list { padding: 6px 12px 10px; }
+    .produkt-zeile {
+      font-size: 13px; padding: 3px 0; color: #333;
+      display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap;
+    }
+    .prod-name { font-weight: 500; }
+    .prod-menge { color: var(--green); font-weight: 600; }
+    .prod-max { color: var(--muted); font-size: 12px; }
+    /* Form product rows */
+    .form-produkt-row {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
+    }
+    .fpr-name-wrap { position: relative; margin-bottom: 5px; }
+    .fpr-name-wrap .sd-input { width: 100%; box-sizing: border-box; margin-bottom: 0; }
+    .fpr-max-hint {
+      font-size: 11px; color: var(--green); font-weight: 600;
+      min-height: 14px; margin-bottom: 5px;
+    }
+    .fpr-menge-row { display: flex; gap: 6px; align-items: center; }
+    .fpr-menge {
+      flex: 1; padding: 7px 8px; border: 2px solid var(--border);
+      border-radius: 7px; font-size: 14px; min-width: 0;
+    }
+    .fpr-menge:focus { outline: none; border-color: var(--green-mid); }
+    .fpr-einheit {
+      flex: 1.2; padding: 7px 6px; border: 2px solid var(--border);
+      border-radius: 7px; font-size: 13px; background: #fff; min-width: 0;
+    }
+    .fpr-einheit:focus { outline: none; border-color: var(--green-mid); }
+    .fpr-del {
+      width: 30px; height: 30px; border-radius: 50%; border: none;
+      background: #fee; color: var(--red); font-size: 18px; font-weight: 700;
+      cursor: pointer; flex-shrink: 0; line-height: 1;
+    }
+    .btn-add-produkt {
+      width: 100%; padding: 9px; background: none;
+      border: 2px dashed var(--green-mid); border-radius: 8px;
+      color: var(--green); font-size: 13px; font-weight: 600;
+      cursor: pointer; margin-bottom: 12px; margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -883,6 +941,7 @@
   <button class="sub-tab active" id="subtab-felder"        onclick="goStamm('felder')">Felder</button>
   <button class="sub-tab"        id="subtab-kulturen"      onclick="goStamm('kulturen')">Kulturen</button>
   <button class="sub-tab"        id="subtab-fliess"        onclick="goStamm('fliess')">Fließfaktoren</button>
+  <button class="sub-tab"        id="subtab-massnahmen"    onclick="goStamm('massnahmen')">Maßnahmen</button>
 </div>
 
 <!-- ══════════ MONITOR SUB-TABS ══════════ -->
@@ -1233,6 +1292,28 @@
   <div id="kulturen-list"></div>
 </div>
 
+<div id="page-massnahmen" class="page">
+  <div id="massnahmen-form-wrap" style="display:none">
+    <div class="sd-form-card">
+      <div class="card-title" id="mass-form-title">📋 Neue Maßnahme</div>
+      <input type="hidden" id="mass-edit-id" value="">
+      <select class="sd-input" id="mass-kultur" style="margin-bottom:8px">
+        <option value="">Kulturart wählen…</option>
+      </select>
+      <input class="sd-input" id="mass-name" type="text" placeholder="Name der Maßnahme (z.B. Fungizid T1)" style="margin-bottom:12px" />
+      <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Produkte / Mittel</div>
+      <div id="mass-produkt-rows"></div>
+      <button class="btn-add-produkt" onclick="addMassnahmeProduktRow()">+ Produkt / Mittel hinzufügen</button>
+      <div class="sd-btn-row">
+        <button class="btn-ok"     onclick="saveMassnahme()">Speichern</button>
+        <button class="btn-cancel" onclick="hideMassnahmenForm()">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+  <button class="btn-add-main" onclick="showMassnahmenForm()">+ Neue Maßnahme</button>
+  <div id="massnahmen-list"></div>
+</div>
+
 <!-- ══════════ BOTTOM NAV ══════════ -->
 <nav class="bottom-nav">
   <button class="nav-btn active" id="nav-monitor" onclick="goPage('monitor')">
@@ -1430,9 +1511,10 @@ function goStamm(sub) {
   document.querySelectorAll("#stamm-tabs .sub-tab").forEach(t => t.classList.remove("active"));
   const subBtn = document.getElementById("subtab-" + sub);
   if (subBtn) subBtn.classList.add("active");
-  if (sub === "felder")   renderSdFelder();
-  if (sub === "kulturen") renderSdKulturen();
-  if (sub === "fliess")   { populateFliessSelect(); renderFliess(); }
+  if (sub === "felder")     renderSdFelder();
+  if (sub === "kulturen")   renderSdKulturen();
+  if (sub === "fliess")     { populateFliessSelect(); renderFliess(); }
+  if (sub === "massnahmen") renderSdMassnahmen();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3139,6 +3221,225 @@ function runCalc() {
 
   document.getElementById("calc-result-inner").innerHTML = rows;
   result.style.display = "block";
+}
+
+// ════════════════════════════════════════════════════════════════
+// PSM MAẞNAHMEN
+// ════════════════════════════════════════════════════════════════
+
+function loadMassnahmen() {
+  try { return JSON.parse(localStorage.getItem("psm_massnahmen") || "[]"); } catch { return []; }
+}
+function saveMassnahmenData(d) { localStorage.setItem("psm_massnahmen", JSON.stringify(d)); }
+
+let _massRowCnt = 0;
+const _massAcFocus = {};
+
+function getMaxAufwand(produktName, kulturName) {
+  if (!produktName || !kulturName || typeof PSM === "undefined") return null;
+  const kw = kulturName.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  for (const r of PSM.d) {
+    if (PSM.n[r[0]] !== produktName) continue;
+    const rk = (PSM.k[r[1]] || "").toLowerCase();
+    if (kw.some(w => rk.includes(w)) || rk.includes(kulturName.toLowerCase())) return r[4] || null;
+  }
+  return null;
+}
+
+function renderSdMassnahmen() {
+  const list = document.getElementById("massnahmen-list");
+  const data = loadMassnahmen();
+  if (!data.length) {
+    list.innerHTML = `<div style="font-size:13px;color:var(--muted);padding:20px 0;text-align:center">Noch keine Maßnahmen gespeichert</div>`;
+    return;
+  }
+  const byKultur = {};
+  data.forEach(m => {
+    const k = m.kultur || "Allgemein";
+    if (!byKultur[k]) byKultur[k] = [];
+    byKultur[k].push(m);
+  });
+  list.innerHTML = Object.entries(byKultur).map(([k, items]) => `
+    <div class="mass-kultur-group">
+      <span class="mass-kultur-label">🌾 ${k}</span>
+      ${items.map(m => `
+        <div class="massnahme-card">
+          <div class="massnahme-header">
+            <span class="massnahme-name">📋 ${m.name}</span>
+            <button class="sorte-edit-btn" onclick="showMassnahmenForm('${m.id}')">✏️</button>
+            <button class="sorte-del"      onclick="deleteMassnahme('${m.id}')">×</button>
+          </div>
+          <div class="massnahme-produkt-list">
+            ${(m.produkte || []).length
+              ? m.produkte.map(p => `
+                  <div class="produkt-zeile">
+                    <span class="prod-name">• ${p.name}</span>
+                    <span class="prod-menge">${p.menge} ${p.einheit}</span>
+                    ${p.maxText ? `<span class="prod-max">(max. ${p.maxText})</span>` : ""}
+                  </div>`).join("")
+              : `<div style="font-size:12px;color:var(--muted)">Keine Produkte eingetragen</div>`}
+          </div>
+        </div>`).join("")}
+    </div>`).join("");
+}
+
+function showMassnahmenForm(id) {
+  const wrap = document.getElementById("massnahmen-form-wrap");
+  document.getElementById("mass-edit-id").value = id || "";
+  document.getElementById("mass-form-title").textContent = id ? "📋 Maßnahme bearbeiten" : "📋 Neue Maßnahme";
+  const sel = document.getElementById("mass-kultur");
+  sel.innerHTML = `<option value="">Kulturart wählen…</option>` +
+    getAllFruchtarten().map(k => `<option value="${k}">${k}</option>`).join("");
+  document.getElementById("mass-produkt-rows").innerHTML = "";
+  _massRowCnt = 0;
+  if (id) {
+    const m = loadMassnahmen().find(x => x.id === id);
+    if (m) {
+      sel.value = m.kultur || "";
+      document.getElementById("mass-name").value = m.name || "";
+      (m.produkte || []).forEach(p => addMassnahmeProduktRow(p));
+    }
+  } else {
+    document.getElementById("mass-name").value = "";
+    addMassnahmeProduktRow();
+  }
+  wrap.style.display = "block";
+  wrap.scrollIntoView({ behavior: "smooth" });
+}
+
+function hideMassnahmenForm() {
+  document.getElementById("massnahmen-form-wrap").style.display = "none";
+}
+
+function addMassnahmeProduktRow(data) {
+  _massRowCnt++;
+  const rid = "r" + _massRowCnt;
+  _massAcFocus[rid] = -1;
+  const d = data || {};
+  const name    = (d.name    || "").replace(/"/g, "&quot;");
+  const menge   = d.menge   || "";
+  const einheit = d.einheit || "l/ha";
+  const maxText = d.maxText || "";
+  const opt = v => e => `<option value="${v}" ${einheit===v?"selected":""}>${v}</option>`;
+  const row = document.createElement("div");
+  row.className = "form-produkt-row";
+  row.id = "fpr-" + rid;
+  row.innerHTML = `
+    <div class="fpr-name-wrap psm-search-wrap">
+      <input class="sd-input fpr-name" id="fpr-name-${rid}"
+        placeholder="Produkt / Wirkstoff / Freitext…"
+        autocomplete="off" value="${name}"
+        oninput="onMassnahmeProduktInput('${rid}')"
+        onkeydown="onMassnahmeProduktKey(event,'${rid}')" />
+      <div class="autocomplete-list" id="fpr-ac-${rid}" style="display:none"></div>
+    </div>
+    <div class="fpr-max-hint" id="fpr-hint-${rid}">${maxText ? `max. zulässig: ${maxText}` : ""}</div>
+    <div class="fpr-menge-row">
+      <input class="fpr-menge" id="fpr-menge-${rid}" type="number" step="0.01" min="0" placeholder="Menge" value="${menge}" />
+      <select class="fpr-einheit" id="fpr-einheit-${rid}">
+        <option value="l/ha"  ${einheit==="l/ha" ?"selected":""}>l/ha</option>
+        <option value="kg/ha" ${einheit==="kg/ha"?"selected":""}>kg/ha</option>
+        <option value="g/ha"  ${einheit==="g/ha" ?"selected":""}>g/ha</option>
+        <option value="ml/ha" ${einheit==="ml/ha"?"selected":""}>ml/ha</option>
+      </select>
+      <button class="fpr-del" onclick="removeMassnahmeProduktRow('${rid}')">×</button>
+    </div>`;
+  document.getElementById("mass-produkt-rows").appendChild(row);
+}
+
+function removeMassnahmeProduktRow(rid) {
+  const el = document.getElementById("fpr-" + rid);
+  if (el) el.remove();
+}
+
+function onMassnahmeProduktInput(rid) {
+  const inp = document.getElementById("fpr-name-" + rid);
+  const ac  = document.getElementById("fpr-ac-"   + rid);
+  _massAcFocus[rid] = -1;
+  const q = (inp?.value || "").trim();
+  if (q.length < 2) { ac.style.display = "none"; return; }
+  const ql = q.toLowerCase();
+  const names = typeof PSM !== "undefined" ? PSM.n.filter(n => n.toLowerCase().includes(ql)).slice(0, 12) : [];
+  const wirk  = typeof PSM !== "undefined" ? PSM.w.filter(w => w.toLowerCase().includes(ql)).slice(0,  6) : [];
+  const all   = [...new Set([...names, ...wirk])];
+  if (!all.length) { ac.style.display = "none"; return; }
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")})`, "gi");
+  ac.innerHTML = all.map(v => {
+    const isW = !names.includes(v);
+    const hi  = v.replace(re, '<span class="ac-match">$1</span>');
+    const tag = isW ? ` <span style="font-size:10px;color:var(--muted)">(Wirkstoff)</span>` : "";
+    return `<div class="ac-item" data-val="${v.replace(/"/g,"&quot;")}">${hi}${tag}</div>`;
+  }).join("");
+  ac.querySelectorAll(".ac-item").forEach(item =>
+    item.addEventListener("click", () => selectMassnahmeProdukt(rid, item.dataset.val)));
+  ac.style.display = "block";
+}
+
+function onMassnahmeProduktKey(e, rid) {
+  const ac    = document.getElementById("fpr-ac-" + rid);
+  const items = ac.querySelectorAll(".ac-item");
+  if (!items.length || ac.style.display === "none") return;
+  if (e.key === "ArrowDown")  { e.preventDefault(); _massAcFocus[rid] = Math.min((_massAcFocus[rid]||0)+1, items.length-1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); _massAcFocus[rid] = Math.max((_massAcFocus[rid]||0)-1, -1); }
+  else if (e.key === "Enter")   { e.preventDefault(); const i = _massAcFocus[rid]||0; if (i>=0) selectMassnahmeProdukt(rid, items[i].dataset.val); else ac.style.display="none"; return; }
+  else return;
+  items.forEach((it, i) => it.classList.toggle("focused", i === (_massAcFocus[rid]||0)));
+}
+
+function selectMassnahmeProdukt(rid, name) {
+  const inp  = document.getElementById("fpr-name-"   + rid);
+  const ac   = document.getElementById("fpr-ac-"     + rid);
+  const hint = document.getElementById("fpr-hint-"   + rid);
+  const mngEl = document.getElementById("fpr-menge-" + rid);
+  const einEl = document.getElementById("fpr-einheit-"+ rid);
+  if (inp) inp.value = name;
+  if (ac)  ac.style.display = "none";
+  const kultur = document.getElementById("mass-kultur").value;
+  const max    = getMaxAufwand(name, kultur);
+  if (hint) hint.textContent = max ? `max. zulässig: ${max}` : "";
+  if (max && mngEl && !mngEl.value) {
+    const m = max.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
+    if (m) {
+      mngEl.value = m[1].replace(",", ".");
+      if (einEl) { const opt = [...einEl.options].find(o => o.value.toLowerCase() === m[2].toLowerCase()); if (opt) einEl.value = opt.value; }
+    }
+  }
+}
+
+function saveMassnahme() {
+  const kultur = document.getElementById("mass-kultur").value;
+  const name   = document.getElementById("mass-name").value.trim();
+  const editId = document.getElementById("mass-edit-id").value;
+  if (!kultur) { toast("Bitte Kulturart wählen"); return; }
+  if (!name)   { toast("Bitte Maßnahmenname eingeben"); return; }
+  const rows = document.querySelectorAll("#mass-produkt-rows .form-produkt-row");
+  const produkte = [];
+  rows.forEach(row => {
+    const rid    = row.id.replace("fpr-", "");
+    const pName  = (document.getElementById("fpr-name-"   + rid)?.value || "").trim();
+    const menge  =  document.getElementById("fpr-menge-"  + rid)?.value || "";
+    const einh   =  document.getElementById("fpr-einheit-"+ rid)?.value || "l/ha";
+    const hint   =  document.getElementById("fpr-hint-"   + rid)?.textContent || "";
+    const maxText = hint.replace("max. zulässig: ", "").trim();
+    if (pName) produkte.push({ id: Date.now().toString() + rid, name: pName, menge, einheit: einh, maxText });
+  });
+  const data = loadMassnahmen();
+  if (editId) {
+    const idx = data.findIndex(m => m.id === editId);
+    if (idx !== -1) data[idx] = { ...data[idx], name, kultur, produkte };
+  } else {
+    data.push({ id: Date.now().toString(), name, kultur, produkte });
+  }
+  saveMassnahmenData(data);
+  hideMassnahmenForm();
+  renderSdMassnahmen();
+  toast("✓ Maßnahme gespeichert");
+}
+
+function deleteMassnahme(id) {
+  if (!confirm("Maßnahme löschen?")) return;
+  saveMassnahmenData(loadMassnahmen().filter(m => m.id !== id));
+  renderSdMassnahmen();
 }
 
 // ════════════════════════════════════════════════════════════════
