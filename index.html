@@ -774,20 +774,46 @@
     }
     .sorte-row:last-of-type { border-bottom: none; }
     .sorte-name { flex: 1; }
+    .sorte-meta { font-size: 12px; color: var(--muted); margin-right: 6px; white-space: nowrap; }
     .sorte-del {
-      width: 24px; height: 24px;
+      width: 26px; height: 26px;
       border: none; background: none;
       color: #ccc; font-size: 17px; cursor: pointer;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
     }
     .sorte-del:active { background: #ffebee; color: var(--danger); }
-    .sorte-add-row { display: flex; gap: 6px; margin-top: 10px; }
+    .sorte-edit-btn {
+      width: 26px; height: 26px; border: none; background: none;
+      font-size: 13px; cursor: pointer; padding: 0; color: var(--muted);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    }
+    .sorte-edit-btn:active { background: var(--green-light); }
+    .sorte-edit-row {
+      display: flex; gap: 5px; align-items: center;
+      padding: 6px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .sorte-edit-row input {
+      padding: 5px 8px; border: 2px solid var(--green-mid); border-radius: 7px;
+      font-size: 13px; background: #fff; outline: none;
+    }
+    .sorte-edit-name { flex: 2; min-width: 80px; }
+    .sorte-edit-num  { flex: 1; min-width: 60px; }
+    .sorte-save-btn {
+      padding: 5px 10px; background: var(--green); color: #fff;
+      border: none; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 700;
+    }
+    .sorte-cancel-btn {
+      padding: 5px 10px; background: #e0e0e0; color: var(--text);
+      border: none; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 700;
+    }
+    .sorte-add-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
     .sorte-add-row input {
-      flex: 1; padding: 8px 10px;
+      flex: 1; min-width: 70px; padding: 8px 10px;
       border: 2px solid var(--border); border-radius: 8px;
       font-size: 14px; background: #fff;
     }
+    .sorte-add-row input:first-child { flex: 2; }
     .sorte-add-row input:focus { outline: none; border-color: var(--green-mid); }
     .sorte-add-row button {
       padding: 8px 14px;
@@ -855,8 +881,7 @@
 
 <!-- ══════════ SAATGUT SUB-TABS ══════════ -->
 <div class="sub-tabs" id="saatgut-tabs">
-  <button class="sub-tab active" id="subtab-sg-sorten"    onclick="goSaatgut('sorten')">Sorten</button>
-  <button class="sub-tab"        id="subtab-sg-berechner" onclick="goSaatgut('berechner')">Berechner</button>
+  <button class="sub-tab active" id="subtab-sg-berechner" onclick="goSaatgut('berechner')">Berechner</button>
 </div>
 
 <!-- ══════════ BONITUR PAGE ══════════ -->
@@ -1011,33 +1036,6 @@
   </div>
 
   <div id="lager-list"></div>
-</div>
-
-<!-- ══════════ SAATGUT SORTEN PAGE ══════════ -->
-<div id="page-sg-sorten" class="page">
-
-  <!-- Add / Edit form -->
-  <div id="saatgut-form-wrap" style="display:none">
-    <div class="sd-form-card">
-      <div class="card-title" id="saatgut-form-title">🌱 Neue Sorte</div>
-      <input type="hidden" id="sg-edit-id" value="" />
-      <select class="sd-input" id="sg-fruchtart" style="margin-bottom:8px">
-        <option value="">Fruchtart wählen…</option>
-      </select>
-      <input class="sd-input" id="sg-sorte"       type="text"   placeholder="Sortenname (z.B. RGT Reform)" />
-      <div style="display:flex;gap:8px">
-        <input class="sd-input" id="sg-tkg"          type="number" placeholder="TKG (g)" step="0.1" min="0" style="flex:1;margin-bottom:8px" />
-        <input class="sd-input" id="sg-keimfaehigkeit" type="number" placeholder="Keimf. (%)" min="0" max="100" step="1" style="flex:1;margin-bottom:8px" />
-      </div>
-      <div class="sd-btn-row">
-        <button class="btn-ok"     onclick="saveSaatgut()">Speichern</button>
-        <button class="btn-cancel" onclick="hideSaatgutForm()">Abbrechen</button>
-      </div>
-    </div>
-  </div>
-
-  <button class="btn-add-main" onclick="showSaatgutForm()">+ Sorte hinzufügen</button>
-  <div id="saatgut-list"></div>
 </div>
 
 <!-- ══════════ SAATGUT BERECHNER PAGE ══════════ -->
@@ -1343,7 +1341,7 @@ const SECTION_LABELS = { monitor: "Bonitur", psm: "PSM", saatgut: "Saatgut", sta
 let lastMonitorPage  = "bonitur";
 let lastStammPage    = "felder";
 let lastPsmPage      = "suche";
-let lastSaatgutPage  = "sorten";
+let lastSaatgutPage  = "berechner";
 
 function goPage(section) {
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
@@ -1381,7 +1379,6 @@ function goSaatgut(sub) {
   document.querySelectorAll("#saatgut-tabs .sub-tab").forEach(t => t.classList.remove("active"));
   const subBtn = document.getElementById("subtab-sg-" + sub);
   if (subBtn) subBtn.classList.add("active");
-  if (sub === "sorten")    renderSaatgut();
   if (sub === "berechner") initBerechner();
 }
 
@@ -2194,6 +2191,7 @@ let sdMergeMode     = false;
 let sdMergeSelected = new Set(); // field IDs selected for merge
 let sdSplitId       = null;      // ID of field being split
 let expandedSorten  = {};        // { kulturName: bool }
+let sorteEditState  = {};        // { kulturName: sorteId } – inline edit
 
 function populateKulturSel(selId) {
   const sel = document.getElementById(selId);
@@ -2429,30 +2427,50 @@ function deleteFeldById(id) {
 
 // ── Kulturen ──────────────────────────────────────────────────
 function renderSdKulturen() {
-  const deleted = loadDeletedKulturen();
-  const builtin = Object.keys(CONFIG).map(k => ({ name: k, builtin: true,  visible: !deleted.includes(k) }));
-  const custom  = loadCustomKulturen().map(k  => ({ name: k, builtin: false, visible: true }));
-  const all     = [...builtin, ...custom];
-  const sorten  = loadSorten();
-  const list    = document.getElementById("kulturen-list");
+  const deleted    = loadDeletedKulturen();
+  const builtin    = Object.keys(CONFIG).map(k => ({ name: k, builtin: true,  visible: !deleted.includes(k) }));
+  const custom     = loadCustomKulturen().map(k  => ({ name: k, builtin: false, visible: true }));
+  const all        = [...builtin, ...custom];
+  const allSaatgut = loadSaatgut();
+  const list       = document.getElementById("kulturen-list");
 
   list.innerHTML = all.map(item => {
+    const kEnc    = item.name.replace(/"/g,'&quot;');
+    const kKey    = item.name.replace(/\s/g,'_');
     const exp     = expandedSorten[item.name] ? "open" : "";
-    const sortArr = sorten[item.name] || [];
+    const editId  = sorteEditState[item.name] || null;
+    const sortArr = allSaatgut.filter(s => s.fruchtart === item.name);
+
     const sortenHTML = exp ? `
       <div class="sorten-section">
         ${sortArr.length
-          ? sortArr.map(s => `
-            <div class="sorte-row">
-              <span class="sorte-name">🌿 ${s}</span>
-              <button class="sorte-del" data-k="${item.name.replace(/"/g,'&quot;')}" data-s="${s.replace(/"/g,'&quot;')}">×</button>
-            </div>`).join("")
+          ? sortArr.sort((a,b) => a.sorte.localeCompare(b.sorte)).map(s => {
+              const sEnc = s.sorte.replace(/</g,'&lt;');
+              if (editId === s.id) return `
+                <div class="sorte-edit-row">
+                  <input class="sorte-edit-name" id="sedit-name-${s.id}" value="${s.sorte.replace(/"/g,'&quot;')}" placeholder="Sortenname" />
+                  <input class="sorte-edit-num" id="sedit-tkg-${s.id}" value="${s.tkg}" type="number" step="0.1" min="0" placeholder="TKG (g)" />
+                  <input class="sorte-edit-num" id="sedit-keim-${s.id}" value="${s.keimfaehigkeit}" type="number" min="0" max="100" placeholder="Keimf. (%)" />
+                  <button class="sorte-save-btn" data-id="${s.id}" data-k="${kEnc}">✓</button>
+                  <button class="sorte-cancel-btn" data-k="${kEnc}">✗</button>
+                </div>`;
+              return `
+                <div class="sorte-row">
+                  <span class="sorte-name">🌿 ${sEnc}</span>
+                  <span class="sorte-meta">${s.tkg} g · ${s.keimfaehigkeit} %</span>
+                  <button class="sorte-edit-btn" data-k="${kEnc}" data-id="${s.id}">✏️</button>
+                  <button class="sorte-del" data-id="${s.id}">×</button>
+                </div>`;
+            }).join("")
           : `<div style="font-size:13px;color:var(--muted);padding:4px 0">Noch keine Sorten eingetragen</div>`}
         <div class="sorte-add-row">
-          <input type="text" id="sorte-input-${item.name.replace(/\s/g,'_')}" placeholder="Neue Sorte…" />
-          <button data-k="${item.name.replace(/"/g,'&quot;')}" class="sorte-add-btn">+</button>
+          <input type="text"   id="sorte-name-${kKey}" placeholder="Neue Sorte…" />
+          <input type="number" id="sorte-tkg-${kKey}"  placeholder="TKG (g)" step="0.1" min="0" />
+          <input type="number" id="sorte-keim-${kKey}" placeholder="Keimf. (%)" min="0" max="100" />
+          <button class="sorte-add-btn" data-k="${kEnc}">+</button>
         </div>
       </div>` : "";
+
     return `
       <div class="sd-wrap">
         <div class="sd-item">
@@ -2461,11 +2479,11 @@ function renderSdKulturen() {
             ${sortArr.length ? `<div class="sd-item-meta">${sortArr.length} Sorte${sortArr.length!==1?'n':''}</div>` : ""}
           </div>
           <span class="sd-badge ${item.builtin ? 'builtin' : ''}">${item.builtin ? 'Standard' : 'Eigene'}</span>
-          <button class="expand-btn ${exp}" data-k="${item.name.replace(/"/g,'&quot;')}">▶</button>
+          <button class="expand-btn ${exp}" data-k="${kEnc}">▶</button>
         </div>
         ${sortenHTML}
         <div class="sd-actions">
-          <button class="sd-action-btn danger" data-k="${item.name.replace(/"/g,'&quot;')}" data-builtin="${item.builtin}">🗑 Löschen</button>
+          <button class="sd-action-btn danger" data-k="${kEnc}" data-builtin="${item.builtin}">🗑 Löschen</button>
         </div>
       </div>`;
   }).join("");
@@ -2475,10 +2493,12 @@ function renderSdKulturen() {
     btn.onclick = () => {
       const k = btn.dataset.k;
       expandedSorten[k] = !expandedSorten[k];
+      if (!expandedSorten[k]) delete sorteEditState[k];
       renderSdKulturen();
     };
   });
-  // Delete buttons
+
+  // Kultur delete buttons
   list.querySelectorAll(".sd-action-btn.danger").forEach(btn => {
     btn.onclick = () => {
       const k = btn.dataset.k;
@@ -2494,25 +2514,66 @@ function renderSdKulturen() {
       renderKulturChips();
     };
   });
+
   // Sorte delete
   list.querySelectorAll(".sorte-del").forEach(btn => {
     btn.onclick = () => {
-      const s = loadSorten();
-      s[btn.dataset.k] = (s[btn.dataset.k] || []).filter(x => x !== btn.dataset.s);
-      saveSorten(s);
+      saveSaatgutData(loadSaatgut().filter(s => s.id !== btn.dataset.id));
       renderSdKulturen();
     };
   });
-  // Sorte add
+
+  // Sorte edit (open inline form)
+  list.querySelectorAll(".sorte-edit-btn").forEach(btn => {
+    btn.onclick = () => {
+      sorteEditState[btn.dataset.k] = btn.dataset.id;
+      renderSdKulturen();
+    };
+  });
+
+  // Sorte cancel edit
+  list.querySelectorAll(".sorte-cancel-btn").forEach(btn => {
+    btn.onclick = () => {
+      delete sorteEditState[btn.dataset.k];
+      renderSdKulturen();
+    };
+  });
+
+  // Sorte save edit
+  list.querySelectorAll(".sorte-save-btn").forEach(btn => {
+    btn.onclick = () => {
+      const id   = btn.dataset.id;
+      const sorte = document.getElementById(`sedit-name-${id}`).value.trim();
+      const tkg   = parseFloat(document.getElementById(`sedit-tkg-${id}`).value);
+      const keim  = parseInt(document.getElementById(`sedit-keim-${id}`).value, 10);
+      if (!sorte)                                     { toast("Bitte Sortenname eingeben"); return; }
+      if (isNaN(tkg) || tkg <= 0)                     { toast("Bitte gültiges TKG eingeben"); return; }
+      if (isNaN(keim) || keim < 0 || keim > 100)      { toast("Keimfähigkeit: 0–100 %"); return; }
+      const data = loadSaatgut();
+      const idx  = data.findIndex(s => s.id === id);
+      if (idx !== -1) { data[idx] = { ...data[idx], sorte, tkg, keimfaehigkeit: keim }; saveSaatgutData(data); }
+      delete sorteEditState[btn.dataset.k];
+      renderSdKulturen();
+      toast("✓ Sorte gespeichert");
+    };
+  });
+
+  // Sorte add (new entry)
   list.querySelectorAll(".sorte-add-btn").forEach(btn => {
     btn.onclick = () => {
-      const k     = btn.dataset.k;
-      const input = document.getElementById("sorte-input-" + k.replace(/\s/g,'_'));
-      const val   = input ? input.value.trim() : "";
-      if (!val) return;
-      const s = loadSorten();
-      if (!(s[k] || []).includes(val)) { s[k] = [...(s[k] || []), val]; saveSorten(s); }
+      const k    = btn.dataset.k;
+      const kKey = k.replace(/\s/g,'_');
+      const sorte = document.getElementById(`sorte-name-${kKey}`).value.trim();
+      const tkg   = parseFloat(document.getElementById(`sorte-tkg-${kKey}`).value);
+      const keim  = parseInt(document.getElementById(`sorte-keim-${kKey}`).value, 10);
+      if (!sorte)                                { toast("Bitte Sortenname eingeben"); return; }
+      if (isNaN(tkg) || tkg <= 0)                { toast("Bitte gültiges TKG eingeben"); return; }
+      if (isNaN(keim) || keim < 0 || keim > 100) { toast("Keimfähigkeit: 0–100 %"); return; }
+      const data = loadSaatgut();
+      data.push({ id: Date.now().toString(), fruchtart: k, sorte, tkg, keimfaehigkeit: keim });
+      saveSaatgutData(data);
       renderSdKulturen();
+      toast("✓ Sorte hinzugefügt");
     };
   });
 }
