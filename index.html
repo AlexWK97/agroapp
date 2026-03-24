@@ -3266,7 +3266,9 @@ function kulturMatches(userKultur, psmKultur) {
       if (!uc || !pc) continue;
       if (uc.includes(pc) || pc.includes(uc)) return true;
       // Suffix match on cores: "weizen" in "weichweizen"
-      for (let len = 4; len <= uc.length; len++) {
+      // Min 70% of core length to avoid Hartweizen ↔ Weichweizen false match
+      const minSuf = Math.max(4, Math.ceil(uc.length * 0.7));
+      for (let len = minSuf; len <= uc.length; len++) {
         const suf = uc.slice(-len);
         if (pc.includes(suf) || suf.includes(pc)) return true;
       }
@@ -3410,7 +3412,7 @@ function onMassnahmeProduktInput(rid) {
     return `<div class="ac-item" data-val="${v.replace(/"/g,"&quot;")}">${hi}${tag}</div>`;
   }).join("");
   ac.querySelectorAll(".ac-item").forEach(item =>
-    item.addEventListener("click", () => selectMassnahmeProdukt(rid, item.dataset.val)));
+    item.addEventListener("mousedown", (e) => { e.preventDefault(); selectMassnahmeProdukt(rid, item.dataset.val); }));
   ac.style.display = "block";
 }
 
