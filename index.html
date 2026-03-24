@@ -3241,15 +3241,29 @@ function saveMassnahmenData(d) { localStorage.setItem("psm_massnahmen", JSON.str
 let _massRowCnt = 0;
 const _massAcFocus = {};
 
+function kulturMatches(userKultur, psmKultur) {
+  if (!psmKultur) return false;
+  const uk = userKultur.toLowerCase();
+  const pk = psmKultur.toLowerCase();
+  if (uk.includes(pk) || pk.includes(uk)) return true;
+  // Suffix-Abgleich für deutsche Komposita z.B. "Winterweizen" ↔ "Winterweichweizen"
+  const psmWords = pk.split(/\s+/);
+  for (const uw of uk.split(/\s+/)) {
+    for (let len = 4; len <= uw.length; len++) {
+      const suffix = uw.slice(-len);
+      for (const pw of psmWords) {
+        if (pw.includes(suffix) || suffix.includes(pw)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function getMaxAufwand(produktName, kulturName) {
   if (!produktName || !kulturName || typeof PSM === "undefined") return null;
-  const kl = kulturName.toLowerCase();
   for (const r of PSM.d) {
     if (PSM.n[r[0]] !== produktName) continue;
-    const rk = (PSM.k[r[1]] || "").toLowerCase();
-    if (!rk) continue;
-    // bidirektional: "Winterweizen".includes("Weizen") oder "Weizen".includes("Winterweizen")
-    if (kl.includes(rk) || rk.includes(kl)) return r[4] || null;
+    if (kulturMatches(kulturName, PSM.k[r[1]])) return r[4] || null;
   }
   return null;
 }
