@@ -1303,7 +1303,7 @@
     <div class="sd-form-card">
       <div class="card-title" id="mass-form-title">📋 Neue Maßnahme</div>
       <input type="hidden" id="mass-edit-id" value="">
-      <select class="sd-input" id="mass-kultur" style="margin-bottom:8px">
+      <select class="sd-input" id="mass-kultur" style="margin-bottom:8px" onchange="updateAllMassMaxHints()">
         <option value="">Kulturart wählen…</option>
       </select>
       <input class="sd-input" id="mass-name" type="text" placeholder="Name der Maßnahme (z.B. Fungizid T1)" style="margin-bottom:12px" />
@@ -3338,7 +3338,8 @@ function addMassnahmeProduktRow(data) {
         placeholder="Produkt / Wirkstoff / Freitext…"
         autocomplete="off" value="${name}"
         oninput="onMassnahmeProduktInput('${rid}')"
-        onkeydown="onMassnahmeProduktKey(event,'${rid}')" />
+        onkeydown="onMassnahmeProduktKey(event,'${rid}')"
+        onblur="onMassnahmeProduktBlur('${rid}')" />
       <div class="autocomplete-list" id="fpr-ac-${rid}" style="display:none"></div>
     </div>
     <div class="fpr-max-hint" id="fpr-hint-${rid}">${maxText ? `max. zulässig: ${maxText}` : ""}</div>
@@ -3421,6 +3422,19 @@ function selectMassnahmeProdukt(rid, name) {
       hint.innerHTML = "";
     }
   }
+}
+
+function onMassnahmeProduktBlur(rid) {
+  const name = (document.getElementById("fpr-name-" + rid)?.value || "").trim();
+  if (name) selectMassnahmeProdukt(rid, name);
+}
+
+function updateAllMassMaxHints() {
+  document.querySelectorAll("#mass-produkt-rows .form-produkt-row").forEach(row => {
+    const rid  = row.id.replace("fpr-", "");
+    const name = (document.getElementById("fpr-name-" + rid)?.value || "").trim();
+    if (name) selectMassnahmeProdukt(rid, name);
+  });
 }
 
 function fillMaxMenge(rid, menge, einheit) {
