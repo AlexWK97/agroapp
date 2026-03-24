@@ -774,7 +774,15 @@
     }
     .sorte-row:last-of-type { border-bottom: none; }
     .sorte-name { flex: 1; }
-    .sorte-meta { font-size: 12px; color: var(--muted); margin-right: 6px; white-space: nowrap; }
+    .sorte-meta { font-size: 12px; color: var(--muted); margin-right: 4px; white-space: nowrap; }
+    .sorte-tag {
+      font-size: 11px; font-weight: 600; padding: 2px 7px;
+      border-radius: 20px; white-space: nowrap; margin-right: 3px;
+      background: #e0e0e0; color: #555;
+    }
+    .sorte-tag.gebeizt  { background: #e8f5e9; color: var(--green); }
+    .sorte-tag.nachbau  { background: #fff3e0; color: #e65100; }
+    .sorte-tag.z-saatgut { background: #e3f2fd; color: #1565c0; }
     .sorte-del {
       width: 26px; height: 26px;
       border: none; background: none;
@@ -799,6 +807,11 @@
     }
     .sorte-edit-name { flex: 2; min-width: 80px; }
     .sorte-edit-num  { flex: 1; min-width: 60px; }
+    .sorte-edit-sel {
+      flex: 1; min-width: 80px; padding: 5px 6px;
+      border: 2px solid var(--green-mid); border-radius: 7px;
+      font-size: 13px; background: #fff; cursor: pointer;
+    }
     .sorte-save-btn {
       padding: 5px 10px; background: var(--green); color: #fff;
       border: none; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 700;
@@ -814,6 +827,12 @@
       font-size: 14px; background: #fff;
     }
     .sorte-add-row input:first-child { flex: 2; }
+    .sorte-add-row select {
+      flex: 1; min-width: 80px; padding: 8px 6px;
+      border: 2px solid var(--border); border-radius: 8px;
+      font-size: 13px; background: #fff; cursor: pointer;
+    }
+    .sorte-add-row select:focus { outline: none; border-color: var(--green-mid); }
     .sorte-add-row input:focus { outline: none; border-color: var(--green-mid); }
     .sorte-add-row button {
       padding: 8px 14px;
@@ -2446,11 +2465,23 @@ function renderSdKulturen() {
         ${sortArr.length
           ? sortArr.sort((a,b) => a.sorte.localeCompare(b.sorte)).map(s => {
               const sEnc = s.sorte.replace(/</g,'&lt;');
+              const beize    = s.beize    || "ungebeizt";
+              const herkunft = s.herkunft || "z-saatgut";
+              const beizeLabel    = beize    === "gebeizt"   ? "Gebeizt"    : "Ungebeizt";
+              const herkunftLabel = herkunft === "nachbau"   ? "Nachbau"    : "Z-Saatgut";
               if (editId === s.id) return `
                 <div class="sorte-edit-row">
                   <input class="sorte-edit-name" id="sedit-name-${s.id}" value="${s.sorte.replace(/"/g,'&quot;')}" placeholder="Sortenname" />
                   <input class="sorte-edit-num" id="sedit-tkg-${s.id}" value="${s.tkg}" type="number" step="0.1" min="0" placeholder="TKG (g)" />
                   <input class="sorte-edit-num" id="sedit-keim-${s.id}" value="${s.keimfaehigkeit}" type="number" min="0" max="100" placeholder="Keimf. (%)" />
+                  <select class="sorte-edit-sel" id="sedit-beize-${s.id}">
+                    <option value="ungebeizt" ${beize==="ungebeizt"?"selected":""}>Ungebeizt</option>
+                    <option value="gebeizt"   ${beize==="gebeizt"?"selected":""}>Gebeizt</option>
+                  </select>
+                  <select class="sorte-edit-sel" id="sedit-herkunft-${s.id}">
+                    <option value="z-saatgut" ${herkunft==="z-saatgut"?"selected":""}>Z-Saatgut</option>
+                    <option value="nachbau"   ${herkunft==="nachbau"?"selected":""}>Nachbau</option>
+                  </select>
                   <button class="sorte-save-btn" data-id="${s.id}" data-k="${kEnc}">✓</button>
                   <button class="sorte-cancel-btn" data-k="${kEnc}">✗</button>
                 </div>`;
@@ -2458,6 +2489,8 @@ function renderSdKulturen() {
                 <div class="sorte-row">
                   <span class="sorte-name">🌿 ${sEnc}</span>
                   <span class="sorte-meta">${s.tkg} g · ${s.keimfaehigkeit} %</span>
+                  <span class="sorte-tag ${beize}">${beizeLabel}</span>
+                  <span class="sorte-tag ${herkunft}">${herkunftLabel}</span>
                   <button class="sorte-edit-btn" data-k="${kEnc}" data-id="${s.id}">✏️</button>
                   <button class="sorte-del" data-id="${s.id}">×</button>
                 </div>`;
@@ -2467,6 +2500,14 @@ function renderSdKulturen() {
           <input type="text"   id="sorte-name-${kKey}" placeholder="Neue Sorte…" />
           <input type="number" id="sorte-tkg-${kKey}"  placeholder="TKG (g)" step="0.1" min="0" />
           <input type="number" id="sorte-keim-${kKey}" placeholder="Keimf. (%)" min="0" max="100" />
+          <select id="sorte-beize-${kKey}">
+            <option value="ungebeizt">Ungebeizt</option>
+            <option value="gebeizt">Gebeizt</option>
+          </select>
+          <select id="sorte-herkunft-${kKey}">
+            <option value="z-saatgut">Z-Saatgut</option>
+            <option value="nachbau">Nachbau</option>
+          </select>
           <button class="sorte-add-btn" data-k="${kEnc}">+</button>
         </div>
       </div>` : "";
@@ -2543,15 +2584,17 @@ function renderSdKulturen() {
   list.querySelectorAll(".sorte-save-btn").forEach(btn => {
     btn.onclick = () => {
       const id   = btn.dataset.id;
-      const sorte = document.getElementById(`sedit-name-${id}`).value.trim();
-      const tkg   = parseFloat(document.getElementById(`sedit-tkg-${id}`).value);
-      const keim  = parseInt(document.getElementById(`sedit-keim-${id}`).value, 10);
+      const sorte    = document.getElementById(`sedit-name-${id}`).value.trim();
+      const tkg      = parseFloat(document.getElementById(`sedit-tkg-${id}`).value);
+      const keim     = parseInt(document.getElementById(`sedit-keim-${id}`).value, 10);
+      const beize    = document.getElementById(`sedit-beize-${id}`).value;
+      const herkunft = document.getElementById(`sedit-herkunft-${id}`).value;
       if (!sorte)                                     { toast("Bitte Sortenname eingeben"); return; }
       if (isNaN(tkg) || tkg <= 0)                     { toast("Bitte gültiges TKG eingeben"); return; }
       if (isNaN(keim) || keim < 0 || keim > 100)      { toast("Keimfähigkeit: 0–100 %"); return; }
       const data = loadSaatgut();
       const idx  = data.findIndex(s => s.id === id);
-      if (idx !== -1) { data[idx] = { ...data[idx], sorte, tkg, keimfaehigkeit: keim }; saveSaatgutData(data); }
+      if (idx !== -1) { data[idx] = { ...data[idx], sorte, tkg, keimfaehigkeit: keim, beize, herkunft }; saveSaatgutData(data); }
       delete sorteEditState[btn.dataset.k];
       renderSdKulturen();
       toast("✓ Sorte gespeichert");
@@ -2563,14 +2606,16 @@ function renderSdKulturen() {
     btn.onclick = () => {
       const k    = btn.dataset.k;
       const kKey = k.replace(/\s/g,'_');
-      const sorte = document.getElementById(`sorte-name-${kKey}`).value.trim();
-      const tkg   = parseFloat(document.getElementById(`sorte-tkg-${kKey}`).value);
-      const keim  = parseInt(document.getElementById(`sorte-keim-${kKey}`).value, 10);
+      const sorte    = document.getElementById(`sorte-name-${kKey}`).value.trim();
+      const tkg      = parseFloat(document.getElementById(`sorte-tkg-${kKey}`).value);
+      const keim     = parseInt(document.getElementById(`sorte-keim-${kKey}`).value, 10);
+      const beize    = document.getElementById(`sorte-beize-${kKey}`).value;
+      const herkunft = document.getElementById(`sorte-herkunft-${kKey}`).value;
       if (!sorte)                                { toast("Bitte Sortenname eingeben"); return; }
       if (isNaN(tkg) || tkg <= 0)                { toast("Bitte gültiges TKG eingeben"); return; }
       if (isNaN(keim) || keim < 0 || keim > 100) { toast("Keimfähigkeit: 0–100 %"); return; }
       const data = loadSaatgut();
-      data.push({ id: Date.now().toString(), fruchtart: k, sorte, tkg, keimfaehigkeit: keim });
+      data.push({ id: Date.now().toString(), fruchtart: k, sorte, tkg, keimfaehigkeit: keim, beize, herkunft });
       saveSaatgutData(data);
       renderSdKulturen();
       toast("✓ Sorte hinzugefügt");
@@ -3025,7 +3070,10 @@ function onCalcSorteChange() {
   const s = loadSaatgut().find(s => s.id === id);
   if (!s) return;
   info.style.display = "block";
-  info.textContent = `TKG: ${s.tkg.toLocaleString("de-DE")} g  ·  Keimfähigkeit: ${s.keimfaehigkeit} %`;
+  const beizeLabel    = (s.beize    || "ungebeizt") === "gebeizt"   ? "Gebeizt"    : "Ungebeizt";
+  const herkunftLabel = (s.herkunft || "z-saatgut") === "nachbau"   ? "Nachbau"    : "Z-Saatgut";
+  info.textContent = `TKG: ${s.tkg.toLocaleString("de-DE")} g  ·  Keimf.: ${s.keimfaehigkeit} %  ·  ${beizeLabel}  ·  ${herkunftLabel}`;
+  if (s.beize) setCalcBeize(s.beize);
   fillCalcFliess();
   runCalc();
 }
