@@ -1,9 +1,9 @@
-const CACHE = "agroapp-v1";
+const CACHE = "agroapp-v2";
 const ASSETS = [
-  "/",
-  "/index.html",
-  "/psm_data.js",
-  "/manifest.json",
+  "/agroapp/",
+  "/agroapp/index.html",
+  "/agroapp/psm_data.js",
+  "/agroapp/manifest.json",
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
 ];
 
