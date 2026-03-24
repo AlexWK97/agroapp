@@ -904,6 +904,12 @@
     .fpr-max-hint {
       font-size: 11px; color: var(--green); font-weight: 600;
       min-height: 14px; margin-bottom: 5px;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .max-fill-btn {
+      padding: 2px 9px; background: var(--green); color: #fff;
+      border: none; border-radius: 20px; font-size: 11px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
     }
     .fpr-menge-row { display: flex; gap: 6px; align-items: center; }
     .fpr-menge {
@@ -3237,11 +3243,13 @@ const _massAcFocus = {};
 
 function getMaxAufwand(produktName, kulturName) {
   if (!produktName || !kulturName || typeof PSM === "undefined") return null;
-  const kw = kulturName.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const kl = kulturName.toLowerCase();
   for (const r of PSM.d) {
     if (PSM.n[r[0]] !== produktName) continue;
     const rk = (PSM.k[r[1]] || "").toLowerCase();
-    if (kw.some(w => rk.includes(w)) || rk.includes(kulturName.toLowerCase())) return r[4] || null;
+    if (!rk) continue;
+    // bidirektional: "Winterweizen".includes("Weizen") oder "Weizen".includes("Winterweizen")
+    if (kl.includes(rk) || rk.includes(kl)) return r[4] || null;
   }
   return null;
 }
@@ -3387,22 +3395,42 @@ function onMassnahmeProduktKey(e, rid) {
 }
 
 function selectMassnahmeProdukt(rid, name) {
-  const inp  = document.getElementById("fpr-name-"   + rid);
-  const ac   = document.getElementById("fpr-ac-"     + rid);
-  const hint = document.getElementById("fpr-hint-"   + rid);
-  const mngEl = document.getElementById("fpr-menge-" + rid);
-  const einEl = document.getElementById("fpr-einheit-"+ rid);
+  const inp   = document.getElementById("fpr-name-"    + rid);
+  const ac    = document.getElementById("fpr-ac-"      + rid);
+  const hint  = document.getElementById("fpr-hint-"    + rid);
+  const mngEl = document.getElementById("fpr-menge-"   + rid);
+  const einEl = document.getElementById("fpr-einheit-" + rid);
   if (inp) inp.value = name;
   if (ac)  ac.style.display = "none";
   const kultur = document.getElementById("mass-kultur").value;
   const max    = getMaxAufwand(name, kultur);
-  if (hint) hint.textContent = max ? `max. zulässig: ${max}` : "";
-  if (max && mngEl && !mngEl.value) {
-    const m = max.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
-    if (m) {
-      mngEl.value = m[1].replace(",", ".");
-      if (einEl) { const opt = [...einEl.options].find(o => o.value.toLowerCase() === m[2].toLowerCase()); if (opt) einEl.value = opt.value; }
+  if (hint) {
+    if (max) {
+      const m = max.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
+      const parsed = m ? { menge: m[1].replace(",", "."), einheit: m[2] } : null;
+      const btnHtml = parsed
+        ? `<button class="max-fill-btn" onclick="fillMaxMenge('${rid}','${parsed.menge}','${parsed.einheit.replace(/\//g,'%2F')}')">↑ Max übernehmen</button>`
+        : "";
+      hint.innerHTML = `<span>max. zulässig: <b>${max}</b></span>${btnHtml}`;
+      // Auto-fill if field still empty
+      if (parsed && mngEl && !mngEl.value) {
+        mngEl.value = parsed.menge;
+        if (einEl) { const opt = [...einEl.options].find(o => o.value.toLowerCase() === parsed.einheit.toLowerCase()); if (opt) einEl.value = opt.value; }
+      }
+    } else {
+      hint.innerHTML = "";
     }
+  }
+}
+
+function fillMaxMenge(rid, menge, einheit) {
+  const mngEl = document.getElementById("fpr-menge-"   + rid);
+  const einEl = document.getElementById("fpr-einheit-" + rid);
+  if (mngEl) mngEl.value = menge;
+  if (einEl) {
+    const unit = decodeURIComponent(einheit);
+    const opt  = [...einEl.options].find(o => o.value.toLowerCase() === unit.toLowerCase());
+    if (opt) einEl.value = opt.value;
   }
 }
 
