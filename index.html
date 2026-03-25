@@ -555,6 +555,22 @@
       border-radius: 8px; padding: 10px; font-size: 12px; font-family: inherit;
       resize: none; background: #f9faf5; line-height: 1.5;
     }
+    /* Bestellung – price comparison */
+    .best-preis-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+    .best-preis-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+    .best-preis-title { font-weight: 700; font-size: 13px; color: var(--green); margin-bottom: 8px; }
+    .best-preis-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; border-radius: 6px; padding: 3px 4px; }
+    .best-preis-row.cheapest { background: #e8f5e9; }
+    .best-preis-vname { flex: 1.2; font-size: 12px; font-weight: 600; }
+    .best-preis-inp { flex: 1; }
+    .best-preis-total { flex: 1; text-align: right; font-size: 12px; font-weight: 700; color: var(--green); }
+    .best-preis-sel-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 12px; }
+    .best-auswahl-section { margin-top: 14px; }
+    .best-auswahl-card { background: var(--green-lite); border: 1px solid var(--green); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+    .best-auswahl-seller { font-weight: 700; font-size: 14px; color: var(--green); margin-bottom: 6px; }
+    .best-auswahl-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.07); }
+    .best-auswahl-row:last-of-type { border-bottom: none; }
+    .best-auswahl-total { font-weight: 700; font-size: 14px; text-align: right; color: var(--green); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--green); }
 
     /* ── SAATGUT ─────────────────────────────────── */
     .sg-group-label {
@@ -972,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.8</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.9</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -982,6 +998,7 @@
   <button class="sub-tab"        id="subtab-kulturen"      onclick="goStamm('kulturen')">Kulturen</button>
   <button class="sub-tab"        id="subtab-fliess"        onclick="goStamm('fliess')">Fließfaktoren</button>
   <button class="sub-tab"        id="subtab-massnahmen"    onclick="goStamm('massnahmen')">Maßnahmen</button>
+  <button class="sub-tab"        id="subtab-verkaeufer"    onclick="goStamm('verkaeufer')">Verkäufer</button>
 </div>
 
 <!-- ══════════ MONITOR SUB-TABS ══════════ -->
@@ -1384,6 +1401,22 @@
   <div id="massnahmen-list"></div>
 </div>
 
+<!-- ══════════ VERKÄUFER PAGE ══════════ -->
+<div id="page-verkaeufer" class="page">
+  <div id="verkaeufer-form-wrap" style="display:none">
+    <div class="sd-form-card">
+      <div class="card-title">🤝 Neuer Verkäufer</div>
+      <input class="sd-input" id="sd-vk-name" type="text" placeholder="Name (z.B. Team Agrar)" />
+      <div class="sd-btn-row">
+        <button class="btn-ok"     onclick="saveSdVerkaeufer()">Speichern</button>
+        <button class="btn-cancel" onclick="hideVerkaeuferForm()">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+  <button class="btn-add-main" onclick="showVerkaeuferForm()">+ Verkäufer hinzufügen</button>
+  <div id="verkaeufer-list"></div>
+</div>
+
 <!-- ══════════ BOTTOM NAV ══════════ -->
 <nav class="bottom-nav">
   <button class="nav-btn active" id="nav-monitor" onclick="goPage('monitor')">
@@ -1586,6 +1619,7 @@ function goStamm(sub) {
   if (sub === "kulturen")   renderSdKulturen();
   if (sub === "fliess")     { populateFliessSelect(); renderFliess(); }
   if (sub === "massnahmen") renderSdMassnahmen();
+  if (sub === "verkaeufer") renderSdVerkaeufer();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3234,6 +3268,9 @@ function renderLager() {
 
 let _bestRowCnt = 0;
 let _bestAcFocus = {};
+let _bestPreise  = {};   // {pid: {verkaeuferName: pricePerUnit}}
+let _bestAuswahl = {};   // {pid: verkaeuferName}
+let _bestItems   = [];   // last rendered order items (for summary)
 
 // g/ha and ml/ha are ordered in kg / l (÷1000)
 function bestOrderConv(ein) {
@@ -3518,12 +3555,42 @@ function renderBestellErgebnis(items, flaeche, kultur) {
   const el = document.getElementById("best-ergebnis");
   if (!el) return;
   const order = items.filter(i => i.bestellOrd > 0);
-  if (!order.length || !flaeche) { el.style.display = "none"; return; }
+  if (!order.length || !flaeche) { el.style.display = "none"; _bestItems = []; return; }
+  _bestItems = order;
 
   const lines = order.map(i =>
     `- ${i.name}: ${i.bestellOrd.toFixed(2)} ${i.orderUnit}${kultur ? " (zugelassen in " + kultur + ")" : ""}`
   );
   const waMsg = `Hallo, ich bräuchte mal Preise für folgende Mittel:\n${lines.join("\n")}\nVielen Dank!`;
+  const vk    = loadVerkaeufer();
+
+  // Build price-entry cards (restore saved values)
+  const preisCards = order.map((item, pid) => {
+    const preise = _bestPreise[pid] || {};
+    const auswahl = _bestAuswahl[pid] || "";
+    const rows = vk.map(v => {
+      const val   = preise[v] != null ? preise[v] : "";
+      const total = (val !== "" && item.bestellOrd > 0) ? (val * item.bestellOrd).toFixed(2) + " €" : "–";
+      return `<div class="best-preis-row" id="bprow-${pid}-${v.replace(/\W/g,'_')}">
+        <span class="best-preis-vname">${v}</span>
+        <input class="psm-input best-preis-inp" type="number" step="0.01" min="0"
+          placeholder="€/${item.orderUnit}" value="${val}"
+          oninput="onBestPreisInput(${pid},'${v.replace(/'/g,"\\'")}',this.value,${item.bestellOrd})" />
+        <span class="best-preis-total" id="bptot-${pid}-${v.replace(/\W/g,'_')}">${total}</span>
+      </div>`;
+    }).join("");
+    const selOpts = `<option value="">– auswählen –</option>` +
+      vk.map(v => `<option value="${v}"${v===auswahl?" selected":""}>${v}</option>`).join("");
+    return `<div class="best-preis-card">
+      <div class="best-preis-title">${item.name} – ${item.bestellOrd.toFixed(2)} ${item.orderUnit}</div>
+      ${rows}
+      <div class="best-preis-sel-row">
+        <span style="font-weight:600">Kaufen bei:</span>
+        <select class="psm-input" style="flex:1;margin-bottom:0"
+          onchange="onBestAuswahlChange(${pid},this.value)">${selOpts}</select>
+      </div>
+    </div>`;
+  }).join("");
 
   el.innerHTML = `<div class="card" style="margin-top:10px">
     <div class="card-title">🛒 Bestellübersicht</div>
@@ -3533,11 +3600,87 @@ function renderBestellErgebnis(items, flaeche, kultur) {
     </div>`).join("")}
     <div class="best-wa-box">
       <div class="best-wa-label">📱 WhatsApp-Nachricht</div>
-      <textarea class="best-wa-text" id="best-wa-text" readonly>${waMsg}</textarea>
+      <textarea class="best-wa-text" id="best-wa-text" readonly rows="${2+order.length}">${waMsg}</textarea>
       <button class="btn-confirm" style="width:100%;margin-top:8px" onclick="copyBestellMsg()">📋 Nachricht kopieren</button>
+    </div>
+    <div class="best-preis-section">
+      <div style="font-weight:700;font-size:13px;color:var(--green);margin-bottom:10px">💶 Preise eintragen</div>
+      ${preisCards}
+      <button class="btn-confirm" style="width:100%;margin-top:4px" onclick="renderBestAuswahlSummary()">Bestellung abschließen →</button>
+      <div id="best-auswahl-summary" class="best-auswahl-section" style="display:none"></div>
     </div>
   </div>`;
   el.style.display = "block";
+  highlightCheapest();
+}
+
+function onBestPreisInput(pid, seller, val, menge) {
+  if (!_bestPreise[pid]) _bestPreise[pid] = {};
+  const price = parseFloat(val);
+  _bestPreise[pid][seller] = isNaN(price) ? null : price;
+  // Update total display
+  const key = seller.replace(/\W/g, '_');
+  const totEl = document.getElementById(`bptot-${pid}-${key}`);
+  if (totEl) totEl.textContent = (!isNaN(price) && price > 0) ? (price * menge).toFixed(2) + " €" : "–";
+  highlightCheapest();
+}
+
+function onBestAuswahlChange(pid, seller) {
+  _bestAuswahl[pid] = seller;
+}
+
+function highlightCheapest() {
+  const vk = loadVerkaeufer();
+  _bestItems.forEach((item, pid) => {
+    const preise = _bestPreise[pid] || {};
+    // Find cheapest seller with a valid price
+    let minPrice = Infinity, minSeller = null;
+    for (const v of vk) {
+      const p = preise[v];
+      if (p != null && p > 0 && p < minPrice) { minPrice = p; minSeller = v; }
+    }
+    for (const v of vk) {
+      const key = v.replace(/\W/g, '_');
+      const rowEl = document.getElementById(`bprow-${pid}-${key}`);
+      if (rowEl) rowEl.classList.toggle("cheapest", v === minSeller);
+    }
+  });
+}
+
+function renderBestAuswahlSummary() {
+  const el = document.getElementById("best-auswahl-summary");
+  if (!el) return;
+  // Group by seller
+  const byVk = {};
+  _bestItems.forEach((item, pid) => {
+    const seller = _bestAuswahl[pid];
+    if (!seller) return;
+    const price  = _bestPreise[pid]?.[seller];
+    if (!byVk[seller]) byVk[seller] = { rows: [], total: 0 };
+    const lineTotal = (price != null && price > 0) ? price * item.bestellOrd : null;
+    byVk[seller].rows.push({ name: item.name, menge: item.bestellOrd, unit: item.orderUnit, price, lineTotal });
+    if (lineTotal != null) byVk[seller].total += lineTotal;
+  });
+  if (!Object.keys(byVk).length) { toast("⚠ Bitte erst Verkäufer auswählen"); return; }
+
+  const cards = Object.entries(byVk).map(([seller, data]) => {
+    const rows = data.rows.map(r =>
+      `<div class="best-auswahl-row">
+        <span>${r.name}: ${r.menge.toFixed(2)} ${r.unit}</span>
+        <span>${r.price != null ? r.price.toFixed(2) + " €/" + r.unit + (r.lineTotal != null ? " = " + r.lineTotal.toFixed(2) + " €" : "") : "Preis fehlt"}</span>
+      </div>`).join("");
+    const totalHtml = data.total > 0 ? `<div class="best-auswahl-total">Gesamt: ${data.total.toFixed(2)} €</div>` : "";
+    return `<div class="best-auswahl-card">
+      <div class="best-auswahl-seller">🤝 ${seller}</div>
+      ${rows}${totalHtml}
+    </div>`;
+  }).join("");
+
+  const grandTotal = Object.values(byVk).reduce((s, d) => s + d.total, 0);
+  el.innerHTML = cards +
+    (grandTotal > 0 ? `<div style="text-align:right;font-weight:700;font-size:15px;padding:6px 0">Gesamtkosten: ${grandTotal.toFixed(2)} €</div>` : "");
+  el.style.display = "block";
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function copyBestellMsg() {
@@ -3546,6 +3689,59 @@ function copyBestellMsg() {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(el.value).then(() => toast("✓ Nachricht kopiert!"));
   } else { el.select(); document.execCommand("copy"); toast("✓ Nachricht kopiert!"); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// VERKÄUFER (STAMMDATEN)
+// ════════════════════════════════════════════════════════════════
+
+const DEFAULT_VERKAEUFER = ["BAT", "Team Agrar", "Agravis", "B+B Agrar"];
+
+function loadVerkaeufer() {
+  const s = localStorage.getItem("stammdaten_verkaeufer");
+  return s ? JSON.parse(s) : [...DEFAULT_VERKAEUFER];
+}
+function saveVerkaeufer(d) { localStorage.setItem("stammdaten_verkaeufer", JSON.stringify(d)); }
+
+function renderSdVerkaeufer() {
+  const list = document.getElementById("verkaeufer-list");
+  if (!list) return;
+  const vk = loadVerkaeufer();
+  if (!vk.length) {
+    list.innerHTML = `<div style="font-size:13px;color:var(--muted);padding:20px 0;text-align:center">Noch keine Verkäufer gespeichert</div>`;
+    return;
+  }
+  list.innerHTML = vk.map((name, i) => `
+    <div class="sd-list-item">
+      <span class="sd-item-label">🤝 ${name}</span>
+      <button class="sd-action-btn danger" onclick="deleteSdVerkaeufer(${i})">Löschen</button>
+    </div>`).join("");
+}
+
+function showVerkaeuferForm() {
+  document.getElementById("verkaeufer-form-wrap").style.display = "block";
+  document.getElementById("sd-vk-name").focus();
+}
+function hideVerkaeuferForm() {
+  document.getElementById("verkaeufer-form-wrap").style.display = "none";
+  document.getElementById("sd-vk-name").value = "";
+}
+function saveSdVerkaeufer() {
+  const name = document.getElementById("sd-vk-name").value.trim();
+  if (!name) { toast("⚠ Bitte Namen eingeben"); return; }
+  const vk = loadVerkaeufer();
+  if (vk.map(v => v.toLowerCase()).includes(name.toLowerCase())) { toast("⚠ Verkäufer bereits vorhanden"); return; }
+  vk.push(name);
+  saveVerkaeufer(vk);
+  hideVerkaeuferForm();
+  renderSdVerkaeufer();
+  toast("✓ Verkäufer gespeichert");
+}
+function deleteSdVerkaeufer(idx) {
+  const vk = loadVerkaeufer();
+  vk.splice(idx, 1);
+  saveVerkaeufer(vk);
+  renderSdVerkaeufer();
 }
 
 // ════════════════════════════════════════════════════════════════
