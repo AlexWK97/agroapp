@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.10</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.11</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1156,17 +1156,30 @@
 <div id="page-psm-lager" class="page">
 
   <div class="card">
-    <div class="card-title">🏪 Mittel hinzufügen</div>
+    <div class="card-title">🏪 Mittel hinzufügen / bearbeiten</div>
     <div class="psm-search-wrap">
       <input class="psm-input" id="lager-mittel-input" type="text"
         placeholder="Handelsname suchen…"
         autocomplete="off" oninput="onLagerMittelInput()" onkeydown="onLagerMittelKey(event)" />
       <div class="autocomplete-list" id="lager-mittel-ac" style="display:none"></div>
     </div>
+    <div class="form-group" style="margin-bottom:6px">
+      <label>Menge</label>
+      <div style="display:flex;gap:6px">
+        <input class="psm-input" id="lager-menge-input" type="number"
+          placeholder="z.B. 5" min="0" step="0.001" style="flex:1;margin-bottom:0" />
+        <select class="psm-input" id="lager-einheit-input" style="width:72px;margin-bottom:0">
+          <option value="l">l</option>
+          <option value="kg">kg</option>
+          <option value="g">g</option>
+          <option value="ml">ml</option>
+        </select>
+      </div>
+    </div>
     <div class="form-group" style="margin-bottom:0">
-      <label>Menge (Liter)</label>
-      <input class="psm-input" id="lager-menge-input" type="number"
-        placeholder="z.B. 5" min="0" step="0.1" style="margin-bottom:0" />
+      <label>Einkaufspreis je Einheit (€) – optional</label>
+      <input class="psm-input" id="lager-wert-input" type="number"
+        placeholder="z.B. 23.50" min="0" step="0.01" style="margin-bottom:0" />
     </div>
     <button class="btn-confirm" style="width:100%;margin-top:12px" onclick="addLagerEintrag()">+ Hinzufügen</button>
   </div>
@@ -3108,8 +3121,68 @@ function renderFliess() {
 // PSM LAGER
 // ════════════════════════════════════════════════════════════════
 
+const DEFAULT_LAGER = [
+  { id:"dl01",  name:"Access",                       menge:8.0,     einheit:"l",  wert_je_einheit:4.32   },
+  { id:"dl02",  name:"Barclay Gallup Biograde 360",  menge:684.781, einheit:"l",  wert_je_einheit:3.20   },
+  { id:"dl03",  name:"Betasana SC",                  menge:80.0,    einheit:"l",  wert_je_einheit:10.95  },
+  { id:"dl04",  name:"Biopower",                     menge:5.0,     einheit:"l",  wert_je_einheit:0      },
+  { id:"dl05",  name:"Boom Efekt",                   menge:20.0,    einheit:"l",  wert_je_einheit:0      },
+  { id:"dl06",  name:"BROADWAY",                     menge:500.0,   einheit:"g",  wert_je_einheit:0.19   },
+  { id:"dl07",  name:"Butisan Gold",                 menge:4.0,     einheit:"l",  wert_je_einheit:33.04  },
+  { id:"dl08",  name:"Carnadine",                    menge:3.0,     einheit:"l",  wert_je_einheit:69.00  },
+  { id:"dl09",  name:"Carpatus",                     menge:1.0,     einheit:"l",  wert_je_einheit:0      },
+  { id:"dl10",  name:"CATO",                         menge:250.0,   einheit:"g",  wert_je_einheit:0      },
+  { id:"dl11",  name:"Cerone 660",                   menge:2.5,     einheit:"l",  wert_je_einheit:23.18  },
+  { id:"dl12",  name:"CYCLONE CS",                   menge:10.0,    einheit:"l",  wert_je_einheit:59.00  },
+  { id:"dl13",  name:"Decis forte",                  menge:1.5,     einheit:"l",  wert_je_einheit:59.96  },
+  { id:"dl14",  name:"DIRECTOR",                     menge:0.2,     einheit:"l",  wert_je_einheit:54.36  },
+  { id:"dl15",  name:"Durano TF",                    menge:18.0,    einheit:"l",  wert_je_einheit:3.80   },
+  { id:"dl16",  name:"Exirel",                       menge:40.0,    einheit:"l",  wert_je_einheit:141.50 },
+  { id:"dl17",  name:"Herold SC (Carpatus)",         menge:5.0,     einheit:"l",  wert_je_einheit:53.00  },
+  { id:"dl18",  name:"HILL-STAR",                    menge:10.0,    einheit:"l",  wert_je_einheit:12.90  },
+  { id:"dl19",  name:"JAGUAR LS",                    menge:13.0,    einheit:"l",  wert_je_einheit:64.69  },
+  { id:"dl20",  name:"Karate Zeon",                  menge:50.0,    einheit:"l",  wert_je_einheit:59.00  },
+  { id:"dl21",  name:"Korvetto",                     menge:17.0,    einheit:"l",  wert_je_einheit:36.95  },
+  { id:"dl22",  name:"LS AZOXY",                     menge:1.0,     einheit:"l",  wert_je_einheit:12.30  },
+  { id:"dl23",  name:"Menno Florades",               menge:9.0,     einheit:"l",  wert_je_einheit:0      },
+  { id:"dl24",  name:"Mertil",                       menge:185.873, einheit:"l",  wert_je_einheit:56.90  },
+  { id:"dl25",  name:"MetaPads",                     menge:2.0,     einheit:"kg", wert_je_einheit:0      },
+  { id:"dl26",  name:"Minecto Gold",                 menge:2400.0,  einheit:"g",  wert_je_einheit:0.25   },
+  { id:"dl27",  name:"Nando 500 SC",                 menge:5.0,     einheit:"l",  wert_je_einheit:28.43  },
+  { id:"dl28",  name:"Oblix",                        menge:10.0,    einheit:"l",  wert_je_einheit:18.50  },
+  { id:"dl29",  name:"PALERMO 720",                  menge:57.0,    einheit:"l",  wert_je_einheit:3.25   },
+  { id:"dl30",  name:"PROFESSOR",                    menge:10.0,    einheit:"l",  wert_je_einheit:6.05   },
+  { id:"dl31",  name:"Profi M Fluid",                menge:20.0,    einheit:"l",  wert_je_einheit:0      },
+  { id:"dl32",  name:"Proman",                       menge:4.0,     einheit:"l",  wert_je_einheit:24.35  },
+  { id:"dl33",  name:"Propulse",                     menge:2.6,     einheit:"l",  wert_je_einheit:47.70  },
+  { id:"dl34",  name:"PROTEG 250 EC",                menge:55.0,    einheit:"l",  wert_je_einheit:22.34  },
+  { id:"dl35",  name:"Quickdown",                    menge:3.0,     einheit:"l",  wert_je_einheit:19.28  },
+  { id:"dl36",  name:"Radiamix",                     menge:13.0,    einheit:"l",  wert_je_einheit:0      },
+  { id:"dl37",  name:"Ratron Giftweizen",            menge:12.0,    einheit:"kg", wert_je_einheit:0      },
+  { id:"dl38",  name:"SCORE",                        menge:1.56,    einheit:"l",  wert_je_einheit:68.32  },
+  { id:"dl39",  name:"Setanta Flo",                  menge:225.0,   einheit:"l",  wert_je_einheit:18.87  },
+  { id:"dl40",  name:"Shock DOWN",                   menge:10.0,    einheit:"l",  wert_je_einheit:29.03  },
+  { id:"dl41",  name:"Spectrum",                     menge:4.671,   einheit:"l",  wert_je_einheit:30.75  },
+  { id:"dl42",  name:"Spectrum Plus",                menge:20.0,    einheit:"l",  wert_je_einheit:18.09  },
+  { id:"dl43",  name:"Stomp Aqua",                   menge:24.1,    einheit:"l",  wert_je_einheit:23.60  },
+  { id:"dl44",  name:"Tanaris",                      menge:8.0,     einheit:"l",  wert_je_einheit:43.47  },
+  { id:"dl45",  name:"TARAK",                        menge:20.0,    einheit:"l",  wert_je_einheit:69.00  },
+  { id:"dl46",  name:"TEBU 25",                      menge:2.0,     einheit:"l",  wert_je_einheit:9.50   },
+  { id:"dl47",  name:"Toil",                         menge:10.0,    einheit:"l",  wert_je_einheit:0      },
+  { id:"dl48",  name:"Toluron 700 SC",               menge:13.703,  einheit:"l",  wert_je_einheit:14.95  },
+  { id:"dl49",  name:"Toprex",                       menge:2.0,     einheit:"l",  wert_je_einheit:53.28  },
+  { id:"dl50",  name:"Tramat 500",                   menge:7.0,     einheit:"l",  wert_je_einheit:18.50  },
+  { id:"dl51",  name:"Trebon 30 EC",                 menge:9.0,     einheit:"l",  wert_je_einheit:0      },
+  { id:"dl52",  name:"Vivendi 100",                  menge:10.85,   einheit:"l",  wert_je_einheit:24.15  },
+  { id:"dl53",  name:"Wegerein",                     menge:5.0,     einheit:"kg", wert_je_einheit:0      },
+];
+
 function loadLager() {
-  try { return JSON.parse(localStorage.getItem("psm_lager") || "[]"); } catch { return []; }
+  try {
+    const stored = localStorage.getItem("psm_lager");
+    if (stored === null) return DEFAULT_LAGER.map(d => ({ ...d })); // erste Nutzung
+    return JSON.parse(stored);
+  } catch { return []; }
 }
 function saveLager(data) {
   localStorage.setItem("psm_lager", JSON.stringify(data));
@@ -3190,8 +3263,10 @@ function onLagerMittelKey(e) {
 }
 
 function addLagerEintrag() {
-  const name  = document.getElementById("lager-mittel-input").value.trim();
-  const menge = parseFloat(document.getElementById("lager-menge-input").value);
+  const name   = document.getElementById("lager-mittel-input").value.trim();
+  const menge  = parseFloat(document.getElementById("lager-menge-input").value);
+  const einheit= document.getElementById("lager-einheit-input")?.value || "l";
+  const wert   = parseFloat(document.getElementById("lager-wert-input")?.value) || 0;
 
   if (!name) { toast("Bitte ein Mittel eingeben"); return; }
   if (isNaN(menge) || menge < 0) { toast("Bitte eine gültige Menge eingeben"); return; }
@@ -3199,16 +3274,17 @@ function addLagerEintrag() {
   const lager = loadLager();
   const existing = lager.find(e => e.name.toLowerCase() === name.toLowerCase());
   if (existing) {
-    existing.menge = menge;
+    existing.menge = menge; existing.einheit = einheit;
+    if (wert > 0) existing.wert_je_einheit = wert;
     toast("✓ Bestand aktualisiert");
   } else {
-    lager.push({ id: Date.now().toString(), name, menge });
+    lager.push({ id: Date.now().toString(), name, menge, einheit, wert_je_einheit: wert });
     toast("✓ Mittel hinzugefügt");
   }
   saveLager(lager);
-
   document.getElementById("lager-mittel-input").value = "";
-  document.getElementById("lager-menge-input").value = "";
+  document.getElementById("lager-menge-input").value  = "";
+  document.getElementById("lager-wert-input").value   = "";
   renderLager();
 }
 
@@ -3217,7 +3293,11 @@ function editLagerEintrag(id) {
   const item = lager.find(e => e.id === id);
   if (!item) return;
   document.getElementById("lager-mittel-input").value = item.name;
-  document.getElementById("lager-menge-input").value = item.menge;
+  document.getElementById("lager-menge-input").value  = item.menge;
+  const einEl = document.getElementById("lager-einheit-input");
+  if (einEl) einEl.value = item.einheit || "l";
+  const wertEl = document.getElementById("lager-wert-input");
+  if (wertEl) wertEl.value = item.wert_je_einheit || "";
   document.getElementById("lager-mittel-input").focus();
 }
 
@@ -3236,23 +3316,26 @@ function renderLager() {
   if (!lager.length) {
     container.innerHTML = `<div class="lager-empty">
       <div style="font-size:40px;margin-bottom:10px">🏪</div>
-      <p>Noch keine Mittel im Lager.<br>Füge dein erstes Pflanzenschutzmittel hinzu.</p>
+      <p>Noch keine Mittel im Lager.</p>
     </div>`;
     return;
   }
 
-  const gesamt = lager.reduce((s, e) => s + e.menge, 0);
+  const gesamtwert = lager.reduce((s, e) => s + (e.menge * (e.wert_je_einheit || 0)), 0);
   const sorted = [...lager].sort((a, b) => a.name.localeCompare(b.name));
+  const fmt = (n, d=2) => n.toLocaleString("de-DE", {minimumFractionDigits:0, maximumFractionDigits:d});
 
   container.innerHTML =
-    `<div class="lager-gesamt"><strong>${lager.length}</strong> Mittel · Gesamt <strong>${gesamt.toLocaleString("de-DE", {maximumFractionDigits:1})} L</strong></div>` +
+    `<div class="lager-gesamt"><strong>${lager.length}</strong> Mittel${gesamtwert > 0 ? ` · Lagerwert <strong>${fmt(gesamtwert)} €</strong>` : ""}</div>` +
     sorted.map(item => {
-      const mengeClass = item.menge <= 1 ? "lager-item-menge low" : "lager-item-menge";
-      const mengeStr = item.menge.toLocaleString("de-DE", {maximumFractionDigits:2}) + " L";
+      const ein     = item.einheit || "l";
+      const low     = item.menge <= (ein === "g" ? 500 : ein === "ml" ? 500 : 1);
+      const mengeStr = fmt(item.menge, 3) + " " + ein;
+      const wertStr  = item.wert_je_einheit > 0 ? ` · ${fmt(item.wert_je_einheit)} €/${ein}` : "";
       return `<div class="lager-item">
         <div class="lager-item-info">
           <div class="lager-item-name">${item.name}</div>
-          <div class="${mengeClass}">${mengeStr}${item.menge <= 1 ? " ⚠ Nachbestellen" : ""}</div>
+          <div class="${low ? "lager-item-menge low" : "lager-item-menge"}">${mengeStr}${wertStr}${low ? " ⚠ Nachbestellen" : ""}</div>
         </div>
         <div class="lager-item-actions">
           <button class="lager-btn-edit" onclick="editLagerEintrag('${item.id}')">✏️</button>
@@ -3458,6 +3541,18 @@ function selectBestProdukt(rid, name) {
   calcBestellung();
 }
 
+// Convert lager item quantity to the order unit used in Bestellung
+function lagerMengeInOrderUnit(item, orderUnit) {
+  const u = (item.einheit || "l").toLowerCase();
+  const ou = orderUnit.toLowerCase();
+  if (u === ou)               return item.menge;
+  if (u === "g"  && ou === "kg") return item.menge / 1000;
+  if (u === "kg" && ou === "g")  return item.menge * 1000;
+  if (u === "ml" && ou === "l")  return item.menge / 1000;
+  if (u === "l"  && ou === "ml") return item.menge * 1000;
+  return 0; // incompatible (e.g. l vs kg)
+}
+
 function getWirkstoffForProdukt(name) {
   if (!name || typeof PSM === "undefined") return null;
   const r = PSM.d.find(r => PSM.n[r[0]] === name);
@@ -3485,12 +3580,13 @@ function calcBestellung() {
     const benoetigt = mph * flaeche;           // in rate-unit (g, l, …)
     const benOrd    = benoetigt * conv.factor;  // in order-unit (kg, l, …)
 
-    // ── Lager check (in order-unit) ───────────────────────────
+    // ── Lager check (unit-aware) ──────────────────────────────
     let lagerOrd  = 0, lagerText = "";
     const exact = lager.find(l => l.name.toLowerCase() === name.toLowerCase());
     if (exact && exact.menge > 0) {
-      lagerOrd  = Math.min(exact.menge, benOrd);
-      lagerText = `📦 ${exact.menge.toFixed(2)} ${conv.orderUnit} „${exact.name}" im Lager – wird abgezogen`;
+      const inOrd = lagerMengeInOrderUnit(exact, conv.orderUnit);
+      lagerOrd  = Math.min(inOrd, benOrd);
+      lagerText = `📦 ${exact.menge} ${exact.einheit||"l"} „${exact.name}" im Lager – wird abgezogen`;
     } else {
       const ws = getWirkstoffForProdukt(name);
       if (ws && kultur && typeof PSM !== "undefined") {
@@ -3498,8 +3594,9 @@ function calcBestellung() {
           if (!li.menge || li.menge <= 0) continue;
           if (getWirkstoffForProdukt(li.name) !== ws) continue;
           if (PSM.d.some(r => PSM.n[r[0]] === li.name && kulturMatches(kultur, PSM.k[r[1]]))) {
-            lagerOrd  = Math.min(li.menge, benOrd);
-            lagerText = `📦 ${li.menge.toFixed(2)} ${conv.orderUnit} „${li.name}" im Lager (gleicher Wirkstoff: ${ws}) – wird abgezogen`;
+            const inOrd = lagerMengeInOrderUnit(li, conv.orderUnit);
+            lagerOrd  = Math.min(inOrd, benOrd);
+            lagerText = `📦 ${li.menge} ${li.einheit||"l"} „${li.name}" im Lager (gleicher Wirkstoff: ${ws}) – wird abgezogen`;
             break;
           }
         }
