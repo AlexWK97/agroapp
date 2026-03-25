@@ -940,7 +940,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.5</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.6</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1286,6 +1286,13 @@
 </div>
 
 <div id="page-kulturen" class="page">
+  <div id="kulturen-uebersicht" style="display:none;margin-bottom:12px">
+    <div class="sd-form-card" style="padding:12px 14px 10px">
+      <div style="font-weight:700;font-size:13px;color:var(--green);margin-bottom:10px">Flächenverteilung</div>
+      <div id="kulturen-uebersicht-rows"></div>
+      <div id="kulturen-uebersicht-total" style="font-size:11px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"></div>
+    </div>
+  </div>
   <div id="kulturen-form-wrap" style="display:none">
     <div class="sd-form-card">
       <div class="card-title">🌾 Neue Kultur</div>
@@ -2534,8 +2541,43 @@ function deleteFeldById(id) {
   renderFeldChips();
 }
 
+// ── Kulturen Flächenübersicht ─────────────────────────────────
+function renderKulturenUebersicht() {
+  const wrap    = document.getElementById("kulturen-uebersicht");
+  const rowsEl  = document.getElementById("kulturen-uebersicht-rows");
+  const totalEl = document.getElementById("kulturen-uebersicht-total");
+  if (!wrap) return;
+  const felder = loadFelder().filter(f => f.kultur && Number(f.flaeche) > 0);
+  if (!felder.length) { wrap.style.display = "none"; return; }
+  const byKultur = {};
+  let total = 0;
+  for (const f of felder) {
+    byKultur[f.kultur] = (byKultur[f.kultur] || 0) + Number(f.flaeche);
+    total += Number(f.flaeche);
+  }
+  const sorted = Object.entries(byKultur).sort((a, b) => b[1] - a[1]);
+  const palette = ["#2e7d32","#558b2f","#1565c0","#e65100","#6a1b9a","#00695c","#c62828","#4527a0"];
+  rowsEl.innerHTML = sorted.map(([name, ha], i) => {
+    const pct   = total > 0 ? ha / total * 100 : 0;
+    const color = palette[i % palette.length];
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:3px">
+        <span style="font-weight:700;color:#333">${name}</span>
+        <span style="color:var(--muted);white-space:nowrap">${ha % 1 === 0 ? ha : ha.toFixed(1)} ha &nbsp;·&nbsp; ${pct.toFixed(0)}&thinsp;%</span>
+      </div>
+      <div style="background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${color};border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join("");
+  const anzahl = felder.length;
+  totalEl.innerHTML = `Gesamt: <b>${total % 1 === 0 ? total : total.toFixed(1)} ha</b> &nbsp;·&nbsp; ${anzahl} Feld${anzahl !== 1 ? "er" : ""}`;
+  wrap.style.display = "block";
+}
+
 // ── Kulturen ──────────────────────────────────────────────────
 function renderSdKulturen() {
+  renderKulturenUebersicht();
   const deleted    = loadDeletedKulturen();
   const builtin    = Object.keys(CONFIG).map(k => ({ name: k, builtin: true,  visible: !deleted.includes(k) }));
   const custom     = loadCustomKulturen().map(k  => ({ name: k, builtin: false, visible: true }));
