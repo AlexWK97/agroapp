@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.9</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.10</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -3551,6 +3551,60 @@ function calcBestellung() {
   renderBestellErgebnis(items, flaeche, kultur);
 }
 
+// ── Wirkstoff detection + product lookup ─────────────────────
+
+let _pwMap = null; // cached: productIndex → Set of wirkstoff indices
+
+function buildPwMap() {
+  if (_pwMap || typeof PSM === "undefined") return;
+  _pwMap = {};
+  for (const r of PSM.d) {
+    if (!_pwMap[r[0]]) _pwMap[r[0]] = new Set();
+    _pwMap[r[0]].add(r[3]);
+  }
+}
+
+// Returns true if the name is a known Wirkstoff but NOT a known trade-name product
+function isWirkstoffInput(name) {
+  if (!name || typeof PSM === "undefined") return false;
+  return PSM.w.includes(name) && !PSM.n.includes(name);
+}
+
+// Returns products that contain ONLY this one Wirkstoff and are approved for kultur
+function getProdukteNurDieserWirkstoff(wirkstoff, kultur) {
+  if (!wirkstoff || !kultur || typeof PSM === "undefined") return { names: [], hasMore: false };
+  buildPwMap();
+  const wi    = PSM.w.indexOf(wirkstoff);
+  if (wi === -1) return { names: [], hasMore: false };
+  const found = new Set();
+  for (const r of PSM.d) {
+    if (r[3] !== wi) continue;                                     // wrong wirkstoff
+    if (!kulturMatches(kultur, PSM.k[r[1]])) continue;             // not for this kultur
+    const pi = r[0];
+    if (_pwMap[pi]?.size !== 1) continue;                          // has other wirkstoffe too
+    found.add(PSM.n[pi]);
+  }
+  const all = [...found].sort();
+  return { names: all.slice(0, 5), hasMore: all.length > 5 };
+}
+
+function formatBestellLine(item, kultur) {
+  const menge = `${item.bestellOrd.toFixed(2)} ${item.orderUnit}`;
+  if (isWirkstoffInput(item.name)) {
+    const info = kultur ? getProdukteNurDieserWirkstoff(item.name, kultur) : { names: [], hasMore: false };
+    let beispiele = "";
+    if (info.names.length > 0) {
+      beispiele = ` (Bspw. ${info.names.join(", ")}${info.hasMore ? " u.a." : ""}`;
+      beispiele += kultur ? `, zugelassen in ${kultur})` : ")";
+    } else if (kultur) {
+      beispiele = ` (zugelassen in ${kultur})`;
+    }
+    return `- ${menge} ${item.name}${beispiele}`;
+  }
+  // Concrete product
+  return `- ${item.name}: ${menge}${kultur ? " (zugelassen in " + kultur + ")" : ""}`;
+}
+
 function renderBestellErgebnis(items, flaeche, kultur) {
   const el = document.getElementById("best-ergebnis");
   if (!el) return;
@@ -3558,9 +3612,7 @@ function renderBestellErgebnis(items, flaeche, kultur) {
   if (!order.length || !flaeche) { el.style.display = "none"; _bestItems = []; return; }
   _bestItems = order;
 
-  const lines = order.map(i =>
-    `- ${i.name}: ${i.bestellOrd.toFixed(2)} ${i.orderUnit}${kultur ? " (zugelassen in " + kultur + ")" : ""}`
-  );
+  const lines = order.map(i => formatBestellLine(i, kultur));
   const waMsg = `Hallo, ich bräuchte mal Preise für folgende Mittel:\n${lines.join("\n")}\nVielen Dank!`;
   const vk    = loadVerkaeufer();
 
