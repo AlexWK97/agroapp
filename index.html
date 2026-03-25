@@ -3411,8 +3411,12 @@ function onMassnahmeProduktInput(rid) {
     const tag = isW ? ` <span style="font-size:10px;color:var(--muted)">(Wirkstoff)</span>` : "";
     return `<div class="ac-item" data-val="${v.replace(/"/g,"&quot;")}">${hi}${tag}</div>`;
   }).join("");
-  ac.querySelectorAll(".ac-item").forEach(item =>
-    item.addEventListener("mousedown", (e) => { e.preventDefault(); selectMassnahmeProdukt(rid, item.dataset.val); }));
+  ac.querySelectorAll(".ac-item").forEach(item => {
+    // touchstart fires before blur on mobile; mousedown+preventDefault for desktop
+    const pick = (e) => { e.preventDefault(); selectMassnahmeProdukt(rid, item.dataset.val); };
+    item.addEventListener("touchstart", pick, { passive: false });
+    item.addEventListener("mousedown",  pick);
+  });
   ac.style.display = "block";
 }
 
@@ -3457,8 +3461,13 @@ function selectMassnahmeProdukt(rid, name) {
 }
 
 function onMassnahmeProduktBlur(rid) {
-  const name = (document.getElementById("fpr-name-" + rid)?.value || "").trim();
-  if (name) selectMassnahmeProdukt(rid, name);
+  // Delay 200ms so touchstart/mousedown on AC item fires before we hide it
+  setTimeout(() => {
+    const ac = document.getElementById("fpr-ac-" + rid);
+    if (ac) ac.style.display = "none";
+    const name = (document.getElementById("fpr-name-" + rid)?.value || "").trim();
+    if (name) selectMassnahmeProdukt(rid, name);
+  }, 200);
 }
 
 function updateAllMassMaxHints() {
