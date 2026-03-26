@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.11</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.12</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1185,6 +1185,9 @@
   </div>
 
   <div id="lager-list"></div>
+  <div style="margin-top:12px;text-align:center">
+    <button class="btn-cancel" style="font-size:12px" onclick="lagerStandardLaden()">📥 Standardlager laden (Lwb Krug, Stand 24.03.2026)</button>
+  </div>
 </div>
 
 <!-- ══════════ PSM BESTELLUNG PAGE ══════════ -->
@@ -1291,8 +1294,8 @@
       </select>
       <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
         <div class="split-sub-label">🟡 Gelbschalen benennen (optional)</div>
-        <input class="sd-input" id="sd-feld-gelbschale1" type="text" placeholder="Gelbschale 1 (z.B. Nordseite)" style="margin-bottom:8px" />
-        <input class="sd-input" id="sd-feld-gelbschale2" type="text" placeholder="Gelbschale 2 (z.B. Südseite)" style="margin-bottom:10px" />
+        <div id="sd-feld-gelbschalen-list"></div>
+        <button type="button" class="btn-add-produkt" onclick="addGelbschaleInput()">+ Gelbschale hinzufügen</button>
       </div>
       <div class="sd-btn-row">
         <button class="btn-ok"     onclick="saveSdFeld()">Speichern</button>
@@ -1507,12 +1510,12 @@ function loadFelder() {
   if (!felder.length) {
     // Migrate from old string array
     const old = JSON.parse(localStorage.getItem("felder") || JSON.stringify(defaultFelder));
-    felder = old.map((name, i) => ({ id: String(Date.now() + i), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1", "Gelbschale 2"] }));
+    felder = old.map((name, i) => ({ id: String(Date.now() + i), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1"] }));
   }
   // Ensure all felder have gelbschalen
   felder = felder.map(f => ({
     ...f,
-    gelbschalen: f.gelbschalen || ["Gelbschale 1", "Gelbschale 2"]
+    gelbschalen: f.gelbschalen || ["Gelbschale 1"]
   }));
   return felder;
 }
@@ -1669,7 +1672,7 @@ function addFeld() {
   if (!name) return;
   const felder = loadFelder();
   if (!felder.some(f => (f.name || f) === name)) {
-    felder.push({ id: Date.now().toString(), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1", "Gelbschale 2"] });
+    felder.push({ id: Date.now().toString(), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1"] });
     saveFelder(felder);
   }
   input.value = "";
@@ -1681,7 +1684,7 @@ function selectFeld(f) {
   // Find full field object
   const felder = loadFelder();
   S.feldObj = felder.find(fd => fd.name === f) || null;
-  S.gelbschalenNames = (S.feldObj && S.feldObj.gelbschalen) ? S.feldObj.gelbschalen : ["Gelbschale 1", "Gelbschale 2"];
+  S.gelbschalenNames = (S.feldObj && S.feldObj.gelbschalen) ? S.feldObj.gelbschalen : ["Gelbschale 1"];
   renderFeldChips();
 }
 
@@ -2459,6 +2462,41 @@ function renderSdFelder() {
   });
 }
 
+// ── Felder — Gelbschalen dynamic inputs ──────────────────────
+let _gelbschaleRowCnt = 0;
+function initGelbschaleInputs(gelbschalen) {
+  _gelbschaleRowCnt = 0;
+  const list = document.getElementById("sd-feld-gelbschalen-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const arr = (gelbschalen && gelbschalen.length) ? gelbschalen : ["Gelbschale 1"];
+  arr.forEach(name => addGelbschaleInput(name));
+}
+function addGelbschaleInput(name) {
+  const list = document.getElementById("sd-feld-gelbschalen-list");
+  if (!list) return;
+  _gelbschaleRowCnt++;
+  const cnt = _gelbschaleRowCnt;
+  const row = document.createElement("div");
+  row.id = "gelb-row-" + cnt;
+  row.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center";
+  row.innerHTML = `<input class="psm-input" type="text" id="gelb-inp-${cnt}" value="${encAttr(name||'')}" placeholder="z.B. Gelbschale 1" style="flex:1;margin-bottom:0" />`
+    + `<button type="button" onclick="removeGelbschaleInput(${cnt})" style="background:#e53935;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>`;
+  list.appendChild(row);
+}
+function removeGelbschaleInput(cnt) {
+  const row = document.getElementById("gelb-row-" + cnt);
+  if (row) row.remove();
+}
+function getGelbschaleInputs() {
+  const list = document.getElementById("sd-feld-gelbschalen-list");
+  if (!list) return ["Gelbschale 1"];
+  const inputs = list.querySelectorAll("input[type=text]");
+  const result = [];
+  inputs.forEach(inp => { const v = inp.value.trim(); if (v) result.push(v); });
+  return result.length ? result : ["Gelbschale 1"];
+}
+
 // ── Felder — Add / Edit ──────────────────────────────────────
 function showFeldForm(editId) {
   populateKulturSel("sd-feld-kultur");
@@ -2473,14 +2511,12 @@ function showFeldForm(editId) {
     document.getElementById("sd-feld-name").value       = f.name || "";
     document.getElementById("sd-feld-flaeche").value    = f.flaeche || "";
     document.getElementById("sd-feld-kultur").value     = f.kultur || "";
-    document.getElementById("sd-feld-gelbschale1").value = (f.gelbschalen || [])[0] || "Gelbschale 1";
-    document.getElementById("sd-feld-gelbschale2").value = (f.gelbschalen || [])[1] || "Gelbschale 2";
+    initGelbschaleInputs(f.gelbschalen || ["Gelbschale 1"]);
   } else {
     document.getElementById("sd-feld-name").value       = "";
     document.getElementById("sd-feld-flaeche").value    = "";
     document.getElementById("sd-feld-kultur").value     = "";
-    document.getElementById("sd-feld-gelbschale1").value = "Gelbschale 1";
-    document.getElementById("sd-feld-gelbschale2").value = "Gelbschale 2";
+    initGelbschaleInputs(["Gelbschale 1"]);
   }
   document.getElementById("felder-form-wrap").style.display = "block";
   document.getElementById("sd-feld-name").focus();
@@ -2495,12 +2531,10 @@ function saveSdFeld() {
   const name        = document.getElementById("sd-feld-name").value.trim();
   const flaeche     = parseFloat(document.getElementById("sd-feld-flaeche").value) || null;
   const kultur      = document.getElementById("sd-feld-kultur").value || null;
-  const gelbschale1 = document.getElementById("sd-feld-gelbschale1").value.trim() || "Gelbschale 1";
-  const gelbschale2 = document.getElementById("sd-feld-gelbschale2").value.trim() || "Gelbschale 2";
   if (!name) { toast("⚠️ Bitte Feldname eingeben"); return; }
+  const gelbschalen = getGelbschaleInputs();
 
   let felder = loadFelder();
-  const gelbschalen = [gelbschale1, gelbschale2];
   if (editId) {
     felder = felder.map(f => f.id === editId ? { ...f, name, flaeche, kultur, gelbschalen } : f);
     toast("✓ Feld aktualisiert");
@@ -2554,7 +2588,7 @@ function saveSplit() {
 
   // Get original field to inherit gelbschalen
   const originalFeld = loadFelder().find(f => f.id === sdSplitId);
-  const originalGelbschalen = (originalFeld && originalFeld.gelbschalen) ? originalFeld.gelbschalen : ["Gelbschale 1", "Gelbschale 2"];
+  const originalGelbschalen = (originalFeld && originalFeld.gelbschalen) ? originalFeld.gelbschalen : ["Gelbschale 1"];
 
   const f1 = {
     id: Date.now().toString(),
@@ -2625,7 +2659,7 @@ function saveMerge() {
   // Get gelbschalen from the first selected field
   const felder = loadFelder();
   const selectedFields = felder.filter(f => sdMergeSelected.has(f.id));
-  const gelbschalen = (selectedFields[0] && selectedFields[0].gelbschalen) ? selectedFields[0].gelbschalen : ["Gelbschale 1", "Gelbschale 2"];
+  const gelbschalen = (selectedFields[0] && selectedFields[0].gelbschalen) ? selectedFields[0].gelbschalen : ["Gelbschale 1"];
 
   let remaining = felder.filter(f => !sdMergeSelected.has(f.id));
   remaining.push({ id: Date.now().toString(), name, flaeche, kultur, gelbschalen });
@@ -3180,9 +3214,18 @@ const DEFAULT_LAGER = [
 function loadLager() {
   try {
     const stored = localStorage.getItem("psm_lager");
-    if (stored === null) return DEFAULT_LAGER.map(d => ({ ...d })); // erste Nutzung
-    return JSON.parse(stored);
+    if (stored === null) return DEFAULT_LAGER.map(d => ({ ...d }));
+    const parsed = JSON.parse(stored);
+    // Leere Liste → noch nicht aktiv genutzt → Standarddaten laden
+    if (parsed.length === 0) return DEFAULT_LAGER.map(d => ({ ...d }));
+    return parsed;
   } catch { return []; }
+}
+function lagerStandardLaden() {
+  if (!confirm("Alle aktuellen Lagereinträge durch Standardlager (Lwb Krug, Stand 24.03.2026) ersetzen?")) return;
+  saveLager(DEFAULT_LAGER.map(d => ({ ...d })));
+  renderLager();
+  toast("✓ Standardlager geladen");
 }
 function saveLager(data) {
   localStorage.setItem("psm_lager", JSON.stringify(data));
