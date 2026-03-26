@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.13</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.14</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1458,15 +1458,13 @@
 // KONFIGURATION
 // ════════════════════════════════════════════════════════════════
 const CONFIG = {
-  "Winterraps": {
-    "Rüssler": ["Kohltriebrüssler", "Schwarzer Stengelrüssler"],
-    "Rapsglanzkäfer": [],
-    "Kohlerdfloh": [],
-    "Schnecken": [],
-    "Kohlschotenrüssler": [],
-    "Kohlschotenmücke": [],
+  "Sommerhartweizen": {
+    "Blattläuse": [],
+    "Getreidehähnchen": [],
+    "Gallmücken": [],
+    "Fritfliege": [],
   },
-  "Winterweizen": {
+  "Winterweichweizen": {
     "Blattläuse": [],
     "Getreidehähnchen": [],
     "Gallmücken": [],
@@ -1478,22 +1476,47 @@ const CONFIG = {
     "Fritfliege": [],
     "Thripse": [],
   },
-  "Mais": {
+  "Erbsen": {
+    "Blattläuse": [],
+    "Erbsenwickler": [],
+    "Erbsenkäfer": [],
+  },
+  "Winterraps": {
+    "Rüssler": ["Kohltriebrüssler", "Schwarzer Stengelrüssler"],
+    "Rapsglanzkäfer": [],
+    "Kohlerdfloh": [],
+    "Schnecken": [],
+    "Kohlschotenrüssler": [],
+    "Kohlschotenmücke": [],
+  },
+  "Sonnenblumen": {
+    "Blattläuse": [],
+    "Schnecken": [],
+  },
+  "Sojabohnen": {
+    "Blattläuse": [],
+    "Spinnmilben": [],
+  },
+  "Grünland": {
+    "Wühlmäuse": [],
+    "Engerlinge": [],
+  },
+  "Silomais": {
     "Maiszünsler": [],
     "Blattläuse": [],
     "Fritfliege": [],
     "Westl. Maiswurzelbohrer": [],
+  },
+  "Kartoffeln": {
+    "Kartoffelkäfer": ["Käfer", "Larven"],
+    "Blattläuse": [],
+    "Drahtwürmer": [],
   },
   "Zuckerrüben": {
     "Rübenderbrüssler": [],
     "Blattläuse": [],
     "Moosknopfkäfer": [],
     "Rübenerdfloh": [],
-  },
-  "Kartoffeln": {
-    "Kartoffelkäfer": ["Käfer", "Larven"],
-    "Blattläuse": [],
-    "Drahtwürmer": [],
   },
 };
 
@@ -1505,9 +1528,9 @@ const PALETTE = ["#2e7d32","#e65100","#1565c0","#ad1457","#4527a0","#00695c","#8
 const defaultFelder = ["Feld A", "Feld B", "Feld C"];
 
 const DEFAULT_FELDER = [
-  { id:"df01",  name:"Schöplitz-1",          flaeche:9.2832,  kultur:"Sommerweizen",     gelbschalen:["Gelbschale 1"] },
-  { id:"df02",  name:"Priesner Seite-1",      flaeche:43.2769, kultur:"Sommerweizen",     gelbschalen:["Gelbschale 1"] },
-  { id:"df03",  name:"Rodeplan",              flaeche:22.4698, kultur:"Sommerweizen",     gelbschalen:["Gelbschale 1"] },
+  { id:"df01",  name:"Schöplitz-1",          flaeche:9.2832,  kultur:"Sommerhartweizen", gelbschalen:["Gelbschale 1"] },
+  { id:"df02",  name:"Priesner Seite-1",      flaeche:43.2769, kultur:"Sommerhartweizen", gelbschalen:["Gelbschale 1"] },
+  { id:"df03",  name:"Rodeplan",              flaeche:22.4698, kultur:"Sommerhartweizen", gelbschalen:["Gelbschale 1"] },
   { id:"df04",  name:"Hinter Haupt",          flaeche:35.3285, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
   { id:"df05",  name:"Störmsche",             flaeche:43.2947, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
   { id:"df06",  name:"Sölle Heeresstraße",    flaeche:12.0397, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
