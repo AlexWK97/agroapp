@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.12</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.13</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1504,13 +1504,57 @@ const PALETTE = ["#2e7d32","#e65100","#1565c0","#ad1457","#4527a0","#00695c","#8
 // ════════════════════════════════════════════════════════════════
 const defaultFelder = ["Feld A", "Feld B", "Feld C"];
 
+const DEFAULT_FELDER = [
+  { id:"df01",  name:"Schöplitz-1",          flaeche:9.2832,  kultur:"Sommerweizen",     gelbschalen:["Gelbschale 1"] },
+  { id:"df02",  name:"Priesner Seite-1",      flaeche:43.2769, kultur:"Sommerweizen",     gelbschalen:["Gelbschale 1"] },
+  { id:"df03",  name:"Rodeplan",              flaeche:22.4698, kultur:"Sommerweizen",     gelbschalen:["Gelbschale 1"] },
+  { id:"df04",  name:"Hinter Haupt",          flaeche:35.3285, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df05",  name:"Störmsche",             flaeche:43.2947, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df06",  name:"Sölle Heeresstraße",    flaeche:12.0397, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df07",  name:"Heeresstraße E-WW",     flaeche:23.2447, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df08",  name:"Heeresstraße A-WW",     flaeche:42.8249, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df09",  name:"Rodeplan WW",           flaeche:11.6675, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df10",  name:"Rodeplan Wald WW",      flaeche:29.9357, kultur:"Winterweichweizen",gelbschalen:["Gelbschale 1"] },
+  { id:"df11",  name:"Schleinitz Friedhof",   flaeche:6.1680,  kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df12",  name:"Zellschen-1",           flaeche:26.4045, kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df13",  name:"An der Halle-1",        flaeche:6.7101,  kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df14",  name:"Teufelstein",           flaeche:20.1600, kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df15",  name:"Koschig",               flaeche:0.8554,  kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df16",  name:"Hinter Brischke",       flaeche:6.7270,  kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df17",  name:"Görschen-1",            flaeche:24.1407, kultur:"Wintergerste",     gelbschalen:["Gelbschale 1"] },
+  { id:"df18",  name:"Delle",                 flaeche:43.1792, kultur:"Erbsen",           gelbschalen:["Gelbschale 1"] },
+  { id:"df19",  name:"An der Mühle",          flaeche:16.2586, kultur:"Erbsen",           gelbschalen:["Gelbschale 1"] },
+  { id:"df20",  name:"Kirschbaum-1",          flaeche:10.1456, kultur:"Winterraps",       gelbschalen:["Gelbschale 1"] },
+  { id:"df21",  name:"Hinter Schelkau 1-1",   flaeche:11.2431, kultur:"Winterraps",       gelbschalen:["Gelbschale 1"] },
+  { id:"df22",  name:"Hinter Schelkau 2-1",   flaeche:9.3029,  kultur:"Winterraps",       gelbschalen:["Gelbschale 1"] },
+  { id:"df23",  name:"Schenkenstück",         flaeche:12.7527, kultur:"Winterraps",       gelbschalen:["Gelbschale 1"] },
+  { id:"df24",  name:"Neben der Wiesen",      flaeche:13.0485, kultur:"Winterraps",       gelbschalen:["Gelbschale 1"] },
+  { id:"df25",  name:"Ziegelei WW25",         flaeche:64.9716, kultur:"Winterraps",       gelbschalen:["Gelbschale 1"] },
+  { id:"df26",  name:"Faule Pfütze",          flaeche:4.6896,  kultur:"Sonnenblumen",     gelbschalen:["Gelbschale 1"] },
+  { id:"df27",  name:"Geyersberg",            flaeche:3.4471,  kultur:"Sonnenblumen",     gelbschalen:["Gelbschale 1"] },
+  { id:"df28",  name:"Kistritzer Straße",     flaeche:25.9225, kultur:"Sojabohnen",       gelbschalen:["Gelbschale 1"] },
+  { id:"df29",  name:"Berger-Weide",          flaeche:1.1752,  kultur:"Grünland",         gelbschalen:["Gelbschale 1"] },
+  { id:"df30",  name:"Biele WR 24",           flaeche:45.6132, kultur:"Silomais",         gelbschalen:["Gelbschale 1"] },
+  { id:"df31",  name:"Silo",                  flaeche:3.6757,  kultur:"Silomais",         gelbschalen:["Gelbschale 1"] },
+  { id:"df32",  name:"Memel",                 flaeche:12.3921, kultur:"Silomais",         gelbschalen:["Gelbschale 1"] },
+  { id:"df33",  name:"Teucherner Str.-1",     flaeche:11.3023, kultur:"Silomais",         gelbschalen:["Gelbschale 1"] },
+  { id:"df34",  name:"Gellerts-1 Kart.",      flaeche:18.1872, kultur:"Kartoffeln",       gelbschalen:["Gelbschale 1"] },
+  { id:"df35",  name:"Meineweher Spitze-1",   flaeche:20.2190, kultur:"Kartoffeln",       gelbschalen:["Gelbschale 1"] },
+  { id:"df36",  name:"An der Mühle-3",        flaeche:18.0413, kultur:"Zuckerrüben",      gelbschalen:["Gelbschale 1"] },
+];
+
 // Felder: extended objects {id, name, flaeche, kultur, gelbschalen}
 function loadFelder() {
-  let felder = JSON.parse(localStorage.getItem("stammdaten_felder") || "[]");
+  const stored = localStorage.getItem("stammdaten_felder");
+  let felder = stored ? JSON.parse(stored) : [];
   if (!felder.length) {
-    // Migrate from old string array
-    const old = JSON.parse(localStorage.getItem("felder") || JSON.stringify(defaultFelder));
-    felder = old.map((name, i) => ({ id: String(Date.now() + i), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1"] }));
+    // Check old migration path, otherwise use built-in defaults
+    const old = JSON.parse(localStorage.getItem("felder") || "null");
+    if (old && old.length) {
+      felder = old.map((name, i) => ({ id: String(Date.now() + i), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1"] }));
+    } else {
+      felder = DEFAULT_FELDER.map(d => ({ ...d }));
+    }
   }
   // Ensure all felder have gelbschalen
   felder = felder.map(f => ({
