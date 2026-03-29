@@ -1,4 +1,4 @@
-const CACHE = "agroapp-v14";
+const CACHE = "agroapp-v15";
 const ASSETS = [
   "/agroapp/",
   "/agroapp/index.html",
