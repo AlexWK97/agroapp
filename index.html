@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.17</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.18</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1010,9 +1010,10 @@
 
 <!-- ══════════ PSM SUB-TABS ══════════ -->
 <div class="sub-tabs" id="psm-tabs">
-  <button class="sub-tab active" id="subtab-psm-suche"      onclick="goPsm('suche')">Suche</button>
-  <button class="sub-tab"        id="subtab-psm-lager"      onclick="goPsm('lager')">Lager</button>
-  <button class="sub-tab"        id="subtab-psm-bestellung" onclick="goPsm('bestellung')">Bestellung</button>
+  <button class="sub-tab active" id="subtab-psm-suche"       onclick="goPsm('suche')">Suche</button>
+  <button class="sub-tab"        id="subtab-psm-lager"       onclick="goPsm('lager')">Lager</button>
+  <button class="sub-tab"        id="subtab-psm-bestellung"  onclick="goPsm('bestellung')">Bestellung</button>
+  <button class="sub-tab"        id="subtab-psm-bestellungen" onclick="goPsm('bestellungen')">Aufträge</button>
 </div>
 
 <!-- ══════════ SAATGUT SUB-TABS ══════════ -->
@@ -1194,9 +1195,9 @@
 <div id="page-psm-bestellung" class="page">
   <div class="card">
     <div class="card-title">📦 Bestellung erstellen</div>
-    <select class="psm-input" id="best-kultur" onchange="onBestKulturChange()" style="margin-bottom:8px">
-      <option value="">Kulturart wählen…</option>
-    </select>
+    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px">Kulturart(en)</div>
+    <div id="best-kulturen-list"></div>
+    <button type="button" class="btn-add-produkt" onclick="addBestKultur()" style="margin-bottom:10px">+ Kultur hinzufügen</button>
     <input class="psm-input" id="best-flaeche" type="number" step="0.1" min="0"
       placeholder="Fläche in ha" oninput="calcBestellung()" style="margin-bottom:8px" />
     <div id="best-massnahme-row" style="display:none;gap:8px;align-items:center;margin-bottom:10px">
@@ -1210,6 +1211,14 @@
   </div>
   <div id="best-produkte-list" style="margin-top:10px"></div>
   <div id="best-ergebnis" style="display:none"></div>
+</div>
+
+<!-- ══════════ PSM BESTELLUNGEN (AUFTRÄGE) PAGE ══════════ -->
+<div id="page-psm-bestellungen" class="page">
+  <div class="card">
+    <div class="card-title">📋 Aufträge</div>
+    <div id="bestellungen-list"></div>
+  </div>
 </div>
 
 <!-- ══════════ SAATGUT BERECHNER PAGE ══════════ -->
@@ -1676,6 +1685,7 @@ function goPsm(sub) {
   if (sub === "suche" && typeof PSM !== "undefined") initPsmPage();
   if (sub === "lager") renderLager();
   if (sub === "bestellung") renderBestellung();
+  if (sub === "bestellungen") renderBestellungen();
 }
 
 function goMonitor(sub) {
@@ -3470,23 +3480,54 @@ function bestOrderConv(ein) {
   return { orderUnit: ein.split("/")[0], factor: 1 };
 }
 
+// ── Bestellung — Kulturen dynamic list ───────────────────────
+let _bestKulturCnt = 0;
+
 function renderBestellung() {
-  const sel = document.getElementById("best-kultur");
-  if (!sel) return;
-  const deleted = loadDeletedKulturen();
-  const builtin = Object.keys(CONFIG).filter(k => !deleted.includes(k));
-  const custom  = loadCustomKulturen();
-  const cur     = sel.value;
-  sel.innerHTML = `<option value="">Kulturart wählen…</option>` +
-    [...builtin, ...custom].map(k => `<option value="${k}"${k===cur?" selected":""}>${k}</option>`).join("");
+  if (!document.getElementById("best-kulturen-list")) return;
+  if (_bestKulturCnt === 0) addBestKultur();
   calcBestellung();
 }
 
+function _kulturOptions(selected) {
+  const deleted = loadDeletedKulturen();
+  const ks = [...Object.keys(CONFIG).filter(k => !deleted.includes(k)), ...loadCustomKulturen()];
+  return `<option value="">Kulturart wählen…</option>` +
+    ks.map(k => `<option value="${k}"${k===selected?" selected":""}>${k}</option>`).join("");
+}
+
+function addBestKultur(val) {
+  _bestKulturCnt++;
+  const idx = _bestKulturCnt;
+  const row = document.createElement("div");
+  row.id = "bk-row-" + idx;
+  row.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center";
+  row.innerHTML = `<select class="psm-input" id="bk-sel-${idx}" style="flex:1;margin-bottom:0"
+      onchange="onBestKulturChange()">${_kulturOptions(val||"")}</select>
+    <button type="button" onclick="removeBestKultur(${idx})"
+      style="background:#e53935;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>`;
+  document.getElementById("best-kulturen-list").appendChild(row);
+}
+
+function removeBestKultur(idx) {
+  const row = document.getElementById("bk-row-" + idx);
+  if (row) { row.remove(); onBestKulturChange(); }
+}
+
+function getBestKulturen() {
+  const list = document.getElementById("best-kulturen-list");
+  if (!list) return [];
+  return [...list.querySelectorAll("select")].map(s => s.value).filter(Boolean);
+}
+
+function getBestPrimaryKultur() { return getBestKulturen()[0] || ""; }
+
 function onBestKulturChange() {
-  const kultur = document.getElementById("best-kultur")?.value || "";
-  if (kultur) {
-    const total = loadFelder()
-      .filter(f => f.kultur === kultur && Number(f.flaeche) > 0)
+  const kulturen = getBestKulturen();
+  if (kulturen.length) {
+    const felder = loadFelder();
+    const total = felder
+      .filter(f => kulturen.includes(f.kultur) && Number(f.flaeche) > 0)
       .reduce((s, f) => s + Number(f.flaeche), 0);
     const fEl = document.getElementById("best-flaeche");
     if (fEl && total > 0) fEl.value = total;
@@ -3495,7 +3536,7 @@ function onBestKulturChange() {
 }
 
 function addBestMassnahme() {
-  const kultur     = document.getElementById("best-kultur")?.value || "";
+  const kultur     = getBestPrimaryKultur();
   const massnahmen = loadMassnahmen();
   if (!massnahmen.length) { toast("Keine Maßnahmen in Stammdaten gespeichert"); return; }
   const filtered   = kultur ? massnahmen.filter(m => !m.kultur || m.kultur === kultur) : massnahmen;
@@ -3513,8 +3554,9 @@ function applyBestMassnahme() {
   const m = loadMassnahmen().find(x => x.id === selEl.value);
   if (!m) return;
   if (m.kultur) {
-    const kultSel = document.getElementById("best-kultur");
-    if (kultSel) { kultSel.value = m.kultur; onBestKulturChange(); }
+    const list = document.getElementById("best-kulturen-list");
+    const firstSel = list?.querySelector("select");
+    if (firstSel) { firstSel.value = m.kultur; onBestKulturChange(); }
   }
   for (const p of (m.produkte || [])) {
     addBestProduktRow({ name: p.name, mengeProHa: parseFloat(p.menge) || 0, einheit: p.einheit || "l/ha" });
@@ -3560,6 +3602,7 @@ function addBestProduktRow(data) {
         <input class="psm-input" id="bpg-${rid}" type="number" step="0.01" min="0"
           placeholder="z.B. 5" value="${geb}" oninput="calcBestellung()" /></div>
     </div>
+    <div id="bpmax-${rid}" style="font-size:11px;color:var(--muted);padding:0 2px 4px"></div>
     <div class="best-pr-result" id="bpr-res-${rid}"></div>`;
   document.getElementById("best-produkte-list").appendChild(row);
 }
@@ -3625,15 +3668,17 @@ function onBestProduktBlur(rid) {
 }
 
 function selectBestProdukt(rid, name) {
-  const inp = document.getElementById("bpn-" + rid);
-  const ac  = document.getElementById("bpac-" + rid);
+  const inp    = document.getElementById("bpn-" + rid);
+  const ac     = document.getElementById("bpac-" + rid);
+  const maxEl  = document.getElementById("bpmax-" + rid);
   if (inp) inp.value = name;
   if (ac)  ac.style.display = "none";
-  // Auto-suggest max dose as default rate
-  const kultur = document.getElementById("best-kultur")?.value || "";
+  // Auto-fill max dose and show hint
+  const kultur = getBestPrimaryKultur();
   if (kultur) {
     const maxStr = getMaxAufwand(name, kultur);
     if (maxStr) {
+      if (maxEl) maxEl.textContent = `⚠ Max. Aufwand: ${maxStr} in ${kultur}`;
       const mx = maxStr.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
       if (mx) {
         const mpmEl = document.getElementById("bpm-" + rid);
@@ -3644,6 +3689,8 @@ function selectBestProdukt(rid, name) {
           if (opt) { einEl.value = opt.value; onBestEinheitChange(rid); return; }
         }
       }
+    } else {
+      if (maxEl) maxEl.textContent = "";
     }
   }
   calcBestellung();
@@ -3669,7 +3716,7 @@ function getWirkstoffForProdukt(name) {
 
 function calcBestellung() {
   const flaeche = parseFloat(document.getElementById("best-flaeche")?.value) || 0;
-  const kultur  = document.getElementById("best-kultur")?.value || "";
+  const kultur  = getBestPrimaryKultur();
   const lager   = loadLager();
   const rows    = document.querySelectorAll("#best-produkte-list .best-produkt-row");
   const items   = [];
@@ -3810,8 +3857,10 @@ function renderBestellErgebnis(items, flaeche, kultur) {
   if (!order.length || !flaeche) { el.style.display = "none"; _bestItems = []; return; }
   _bestItems = order;
 
-  const lines = order.map((i, idx) => formatBestellLine(i, kultur, idx + 1));
-  const kulturLine = kultur ? `, Kultur: ${kultur}` : "";
+  const kulturen = getBestKulturen();
+  const kulturStr = kulturen.length ? kulturen.join(" + ") : (kultur || "");
+  const lines = order.map((i, idx) => formatBestellLine(i, kulturStr, idx + 1));
+  const kulturLine = kulturStr ? `, Kultur: ${kulturStr}` : "";
   const flaecheLine = flaeche ? `, ca. ${flaeche} ha` : "";
   const waMsg = `Hallo,\n\nbitte Preise für folgende PSM${kulturLine}${flaecheLine}:\n\n${lines.join("\n\n")}\n\nDanke und Gruß!`;
   const vk    = loadVerkaeufer();
@@ -3854,6 +3903,7 @@ function renderBestellErgebnis(items, flaeche, kultur) {
       <div class="best-wa-label">📱 WhatsApp-Nachricht</div>
       <textarea class="best-wa-text" id="best-wa-text" readonly rows="${2+order.length}">${waMsg}</textarea>
       <button class="btn-confirm" style="width:100%;margin-top:8px" onclick="copyBestellMsg()">📋 Nachricht kopieren</button>
+      <button class="btn-confirm" style="width:100%;margin-top:6px;background:#1565c0" onclick="saveBestellung()">💾 Bestellung speichern</button>
     </div>
     <div class="best-preis-section">
       <div style="font-weight:700;font-size:13px;color:var(--green);margin-bottom:10px">💶 Preise eintragen</div>
@@ -3941,6 +3991,86 @@ function copyBestellMsg() {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(el.value).then(() => toast("✓ Nachricht kopiert!"));
   } else { el.select(); document.execCommand("copy"); toast("✓ Nachricht kopiert!"); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// BESTELLUNGEN (AUFTRÄGE)
+// ════════════════════════════════════════════════════════════════
+function loadBestellungen() {
+  try { return JSON.parse(localStorage.getItem("psm_bestellungen") || "[]"); } catch { return []; }
+}
+function saveBestellungen(list) { localStorage.setItem("psm_bestellungen", JSON.stringify(list)); }
+
+function saveBestellung() {
+  const waEl = document.getElementById("best-wa-text");
+  const flaeche = parseFloat(document.getElementById("best-flaeche")?.value) || 0;
+  if (!_bestItems.length) { toast("⚠ Keine Produkte zum Speichern"); return; }
+  const kulturen = getBestKulturen();
+  const list = loadBestellungen();
+  list.unshift({
+    id: "bo_" + Date.now(),
+    datum: new Date().toLocaleDateString("de-DE"),
+    kulturen,
+    flaeche,
+    produkte: _bestItems.map(i => ({
+      name: i.name, bestellOrd: i.bestellOrd, orderUnit: i.orderUnit,
+      gebindeAnzahl: i.gebindeAnzahl, gebinde: i.gebinde
+    })),
+    waMsg: waEl?.value || "",
+    geliefert: false
+  });
+  saveBestellungen(list);
+  toast("✓ Bestellung gespeichert");
+}
+
+function markGeliefert(id) {
+  const list = loadBestellungen().map(b => b.id === id ? { ...b, geliefert: true } : b);
+  saveBestellungen(list);
+  renderBestellungen();
+  toast("✓ Als geliefert markiert");
+}
+
+function deleteBestellung(id) {
+  if (!confirm("Bestellung löschen?")) return;
+  saveBestellungen(loadBestellungen().filter(b => b.id !== id));
+  renderBestellungen();
+}
+
+function renderBestellungen() {
+  const el = document.getElementById("bestellungen-list");
+  if (!el) return;
+  const list = loadBestellungen();
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><p>Keine gespeicherten Bestellungen</p></div>`;
+    return;
+  }
+  el.innerHTML = list.map(b => {
+    const opacity = b.geliefert ? "opacity:.5" : "";
+    const strike  = b.geliefert ? "text-decoration:line-through" : "";
+    const badge   = b.geliefert
+      ? `<span style="color:#2e7d32;font-weight:700;font-size:12px">✓ Geliefert</span>`
+      : `<button class="btn-confirm" style="font-size:12px;padding:5px 10px"
+           onclick="markGeliefert('${b.id}')">✓ Als geliefert markieren</button>`;
+    const produkte = b.produkte.map(p => {
+      const geb = (p.gebindeAnzahl > 0 && p.gebinde > 0)
+        ? ` (${p.gebindeAnzahl} × ${p.gebinde} ${p.orderUnit})` : "";
+      return `<div style="font-size:13px;${strike}">${p.name}: ${p.bestellOrd.toFixed(2)} ${p.orderUnit}${geb}</div>`;
+    }).join("");
+    return `<div class="card" style="margin-bottom:10px;${opacity}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-weight:700;font-size:14px">${b.kulturen?.join(" + ") || "–"}</div>
+          <div style="font-size:12px;color:var(--muted)">${b.datum}${b.flaeche ? " · " + b.flaeche + " ha" : ""}</div>
+        </div>
+        <button onclick="deleteBestellung('${b.id}')"
+          style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px">🗑</button>
+      </div>
+      ${produkte}
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        ${badge}
+      </div>
+    </div>`;
+  }).join("");
 }
 
 // ════════════════════════════════════════════════════════════════
