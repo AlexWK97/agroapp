@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.18</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.19</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1195,11 +1195,6 @@
 <div id="page-psm-bestellung" class="page">
   <div class="card">
     <div class="card-title">📦 Bestellung erstellen</div>
-    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px">Kulturart(en)</div>
-    <div id="best-kulturen-list"></div>
-    <button type="button" class="btn-add-produkt" onclick="addBestKultur()" style="margin-bottom:10px">+ Kultur hinzufügen</button>
-    <input class="psm-input" id="best-flaeche" type="number" step="0.1" min="0"
-      placeholder="Fläche in ha" oninput="calcBestellung()" style="margin-bottom:8px" />
     <div id="best-massnahme-row" style="display:none;gap:8px;align-items:center;margin-bottom:10px">
       <select class="psm-input" id="best-massnahme-sel" style="flex:1;margin-bottom:0"></select>
       <button class="btn-confirm" onclick="applyBestMassnahme()" style="white-space:nowrap">Übernehmen</button>
@@ -3480,71 +3475,79 @@ function bestOrderConv(ein) {
   return { orderUnit: ein.split("/")[0], factor: 1 };
 }
 
-// ── Bestellung — Kulturen dynamic list ───────────────────────
-let _bestKulturCnt = 0;
+// ── Bestellung ────────────────────────────────────────────────
+let _bestRowKulCnt = {};  // { rid: counter } for per-product kultur rows
 
-function renderBestellung() {
-  if (!document.getElementById("best-kulturen-list")) return;
-  if (_bestKulturCnt === 0) addBestKultur();
-  calcBestellung();
-}
+function renderBestellung() { calcBestellung(); }
 
 function _kulturOptions(selected) {
   const deleted = loadDeletedKulturen();
   const ks = [...Object.keys(CONFIG).filter(k => !deleted.includes(k)), ...loadCustomKulturen()];
-  return `<option value="">Kulturart wählen…</option>` +
+  return `<option value="">Kultur wählen…</option>` +
     ks.map(k => `<option value="${k}"${k===selected?" selected":""}>${k}</option>`).join("");
 }
 
-function addBestKultur(val) {
-  _bestKulturCnt++;
-  const idx = _bestKulturCnt;
-  const row = document.createElement("div");
-  row.id = "bk-row-" + idx;
-  row.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center";
-  row.innerHTML = `<select class="psm-input" id="bk-sel-${idx}" style="flex:1;margin-bottom:0"
-      onchange="onBestKulturChange()">${_kulturOptions(val||"")}</select>
-    <button type="button" onclick="removeBestKultur(${idx})"
+// ── Per-product Kulturen ──────────────────────────────────────
+function addBestProduktKultur(rid, val) {
+  const list = document.getElementById("bpkl-" + rid);
+  if (!list) return;
+  if (!_bestRowKulCnt[rid]) _bestRowKulCnt[rid] = 0;
+  _bestRowKulCnt[rid]++;
+  const cnt = _bestRowKulCnt[rid];
+  const div = document.createElement("div");
+  div.id = `bpkl-${rid}-${cnt}`;
+  div.style.cssText = "display:flex;gap:6px;margin-bottom:4px;align-items:center";
+  div.innerHTML = `<select class="psm-input" id="bpks-${rid}-${cnt}" style="flex:1;margin-bottom:0"
+      onchange="onBestProduktKulturChange('${rid}')">${_kulturOptions(val||"")}</select>
+    <button type="button" onclick="removeBestProduktKultur('${rid}',${cnt})"
       style="background:#e53935;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>`;
-  document.getElementById("best-kulturen-list").appendChild(row);
+  list.appendChild(div);
 }
 
-function removeBestKultur(idx) {
-  const row = document.getElementById("bk-row-" + idx);
-  if (row) { row.remove(); onBestKulturChange(); }
+function removeBestProduktKultur(rid, cnt) {
+  document.getElementById(`bpkl-${rid}-${cnt}`)?.remove();
+  onBestProduktKulturChange(rid);
 }
 
-function getBestKulturen() {
-  const list = document.getElementById("best-kulturen-list");
+function getBestProduktKulturen(rid) {
+  const list = document.getElementById("bpkl-" + rid);
   if (!list) return [];
   return [...list.querySelectorAll("select")].map(s => s.value).filter(Boolean);
 }
 
-function getBestPrimaryKultur() { return getBestKulturen()[0] || ""; }
-
-function onBestKulturChange() {
-  const kulturen = getBestKulturen();
-  if (kulturen.length) {
-    const felder = loadFelder();
-    const total = felder
+function onBestProduktKulturChange(rid) {
+  const kulturen = getBestProduktKulturen(rid);
+  const flaEl = document.getElementById("bpfla-" + rid);
+  if (flaEl && !flaEl.dataset.manual) {
+    const total = loadFelder()
       .filter(f => kulturen.includes(f.kultur) && Number(f.flaeche) > 0)
       .reduce((s, f) => s + Number(f.flaeche), 0);
-    const fEl = document.getElementById("best-flaeche");
-    if (fEl && total > 0) fEl.value = total;
+    if (total > 0) flaEl.value = total; else flaEl.value = "";
   }
+  const name = (document.getElementById("bpn-" + rid)?.value || "").trim();
+  if (name) updateBestMaxHint(rid, name);
   calcBestellung();
 }
 
+function updateBestMaxHint(rid, name) {
+  const maxEl   = document.getElementById("bpmax-" + rid);
+  if (!maxEl) return;
+  const kulturen = getBestProduktKulturen(rid);
+  if (!kulturen.length || !name) { maxEl.textContent = ""; return; }
+  const hints = kulturen.map(k => {
+    const ms = getMaxAufwand(name, k);
+    return ms ? `${k}: max ${ms}` : null;
+  }).filter(Boolean);
+  maxEl.textContent = hints.length ? `⚠ ${hints.join("  ·  ")}` : "";
+}
+
 function addBestMassnahme() {
-  const kultur     = getBestPrimaryKultur();
   const massnahmen = loadMassnahmen();
   if (!massnahmen.length) { toast("Keine Maßnahmen in Stammdaten gespeichert"); return; }
-  const filtered   = kultur ? massnahmen.filter(m => !m.kultur || m.kultur === kultur) : massnahmen;
-  if (!filtered.length) { toast("Keine Maßnahmen für diese Kulturart"); return; }
   const rowEl = document.getElementById("best-massnahme-row");
   const selEl = document.getElementById("best-massnahme-sel");
   selEl.innerHTML = `<option value="">Maßnahme wählen…</option>` +
-    filtered.map(m => `<option value="${m.id}">${m.kultur ? m.kultur + ": " : ""}${m.name}</option>`).join("");
+    massnahmen.map(m => `<option value="${m.id}">${m.kultur ? m.kultur + ": " : ""}${m.name}</option>`).join("");
   rowEl.style.display = "flex";
 }
 
@@ -3553,13 +3556,9 @@ function applyBestMassnahme() {
   if (!selEl?.value) return;
   const m = loadMassnahmen().find(x => x.id === selEl.value);
   if (!m) return;
-  if (m.kultur) {
-    const list = document.getElementById("best-kulturen-list");
-    const firstSel = list?.querySelector("select");
-    if (firstSel) { firstSel.value = m.kultur; onBestKulturChange(); }
-  }
   for (const p of (m.produkte || [])) {
-    addBestProduktRow({ name: p.name, mengeProHa: parseFloat(p.menge) || 0, einheit: p.einheit || "l/ha" });
+    addBestProduktRow({ name: p.name, mengeProHa: parseFloat(p.menge) || 0,
+      einheit: p.einheit || "l/ha", kultur: m.kultur || "" });
   }
   document.getElementById("best-massnahme-row").style.display = "none";
   calcBestellung();
@@ -3569,6 +3568,7 @@ function addBestProduktRow(data) {
   _bestRowCnt++;
   const rid  = "b" + _bestRowCnt;
   _bestAcFocus[rid] = -1;
+  _bestRowKulCnt[rid] = 0;
   const d    = data || {};
   const name = (d.name || "").replace(/"/g, "&quot;");
   const mph  = d.mengeProHa || "";
@@ -3583,7 +3583,7 @@ function addBestProduktRow(data) {
   row.innerHTML = `
     <div class="best-pr-header">
       <div style="flex:1;position:relative">
-        <input class="psm-input" id="bpn-${rid}" placeholder="Produkt / Wirkstoff…"
+        <input class="psm-input" id="bpn-${rid}" placeholder="Produkt…"
           value="${name}" autocomplete="off"
           oninput="onBestProduktInput('${rid}')"
           onkeydown="onBestProduktKey(event,'${rid}')"
@@ -3592,6 +3592,10 @@ function addBestProduktRow(data) {
       </div>
       <button class="fpr-del" onclick="removeBestRow('${rid}')">×</button>
     </div>
+    <div style="font-size:11px;color:var(--muted);margin:6px 0 2px;font-weight:600">Kultur(en)</div>
+    <div id="bpkl-${rid}"></div>
+    <button type="button" class="btn-add-produkt" onclick="addBestProduktKultur('${rid}')"
+      style="margin-bottom:8px;font-size:12px;padding:4px 10px">+ Kultur</button>
     <div class="best-pr-fields">
       <div style="flex:1"><label>Menge/ha</label>
         <input class="psm-input" id="bpm-${rid}" type="number" step="0.01" min="0"
@@ -3601,10 +3605,15 @@ function addBestProduktRow(data) {
       <div style="flex:1"><label id="bpgl-${rid}">Gebinde (${conv.orderUnit})</label>
         <input class="psm-input" id="bpg-${rid}" type="number" step="0.01" min="0"
           placeholder="z.B. 5" value="${geb}" oninput="calcBestellung()" /></div>
+      <div style="flex:1"><label>Fläche (ha)</label>
+        <input class="psm-input" id="bpfla-${rid}" type="number" step="0.1" min="0"
+          placeholder="auto" oninput="this.dataset.manual='1';calcBestellung()" /></div>
     </div>
-    <div id="bpmax-${rid}" style="font-size:11px;color:var(--muted);padding:0 2px 4px"></div>
+    <div id="bpmax-${rid}" style="font-size:11px;color:var(--muted);padding:2px 2px 4px"></div>
     <div class="best-pr-result" id="bpr-res-${rid}"></div>`;
   document.getElementById("best-produkte-list").appendChild(row);
+  if (d.kultur) addBestProduktKultur(rid, d.kultur);
+  else addBestProduktKultur(rid);
 }
 
 function onBestEinheitChange(rid) {
@@ -3668,17 +3677,18 @@ function onBestProduktBlur(rid) {
 }
 
 function selectBestProdukt(rid, name) {
-  const inp    = document.getElementById("bpn-" + rid);
-  const ac     = document.getElementById("bpac-" + rid);
-  const maxEl  = document.getElementById("bpmax-" + rid);
+  const inp = document.getElementById("bpn-" + rid);
+  const ac  = document.getElementById("bpac-" + rid);
   if (inp) inp.value = name;
   if (ac)  ac.style.display = "none";
-  // Auto-fill max dose and show hint
-  const kultur = getBestPrimaryKultur();
-  if (kultur) {
-    const maxStr = getMaxAufwand(name, kultur);
+  // Show max hints for all kulturen of this product
+  updateBestMaxHint(rid, name);
+  // Auto-fill max dose from first kultur
+  const kulturen = getBestProduktKulturen(rid);
+  const primaryKultur = kulturen[0] || "";
+  if (primaryKultur) {
+    const maxStr = getMaxAufwand(name, primaryKultur);
     if (maxStr) {
-      if (maxEl) maxEl.textContent = `⚠ Max. Aufwand: ${maxStr} in ${kultur}`;
       const mx = maxStr.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
       if (mx) {
         const mpmEl = document.getElementById("bpm-" + rid);
@@ -3689,8 +3699,6 @@ function selectBestProdukt(rid, name) {
           if (opt) { einEl.value = opt.value; onBestEinheitChange(rid); return; }
         }
       }
-    } else {
-      if (maxEl) maxEl.textContent = "";
     }
   }
   calcBestellung();
@@ -3715,28 +3723,39 @@ function getWirkstoffForProdukt(name) {
 }
 
 function calcBestellung() {
-  const flaeche = parseFloat(document.getElementById("best-flaeche")?.value) || 0;
-  const kultur  = getBestPrimaryKultur();
-  const lager   = loadLager();
-  const rows    = document.querySelectorAll("#best-produkte-list .best-produkt-row");
-  const items   = [];
+  const lager = loadLager();
+  const rows  = document.querySelectorAll("#best-produkte-list .best-produkt-row");
+  const items = [];
 
   rows.forEach(row => {
-    const rid   = row.id.replace("bpr-", "");
-    const name  = (document.getElementById("bpn-" + rid)?.value || "").trim();
-    const mph   = parseFloat(document.getElementById("bpm-" + rid)?.value) || 0;
-    const ein   = document.getElementById("bpe-" + rid)?.value || "l/ha";
-    const geb   = parseFloat(document.getElementById("bpg-" + rid)?.value) || 0;
-    const resEl = document.getElementById("bpr-res-" + rid);
+    const rid      = row.id.replace("bpr-", "");
+    const name     = (document.getElementById("bpn-" + rid)?.value || "").trim();
+    const mph      = parseFloat(document.getElementById("bpm-" + rid)?.value) || 0;
+    const ein      = document.getElementById("bpe-" + rid)?.value || "l/ha";
+    const geb      = parseFloat(document.getElementById("bpg-" + rid)?.value) || 0;
+    const resEl    = document.getElementById("bpr-res-" + rid);
+    const kulturen = getBestProduktKulturen(rid);
+    const kultur   = kulturen[0] || "";
+
+    // Auto-calc fläche from kulturen if not manually set
+    const flaEl   = document.getElementById("bpfla-" + rid);
+    let flaeche   = parseFloat(flaEl?.value) || 0;
+    if (!flaeche && kulturen.length) {
+      flaeche = loadFelder()
+        .filter(f => kulturen.includes(f.kultur) && Number(f.flaeche) > 0)
+        .reduce((s, f) => s + Number(f.flaeche), 0);
+      if (flaeche && flaEl && !flaEl.dataset.manual) flaEl.value = flaeche;
+    }
+
     if (!resEl) return;
     if (!name || !mph || !flaeche) { resEl.innerHTML = ""; return; }
 
-    const conv     = bestOrderConv(ein);
-    const benoetigt = mph * flaeche;           // in rate-unit (g, l, …)
-    const benOrd    = benoetigt * conv.factor;  // in order-unit (kg, l, …)
+    const conv      = bestOrderConv(ein);
+    const benoetigt = mph * flaeche;
+    const benOrd    = benoetigt * conv.factor;
 
-    // ── Lager check (unit-aware) ──────────────────────────────
-    let lagerOrd  = 0, lagerText = "";
+    // ── Lager check ───────────────────────────────────────────
+    let lagerOrd = 0, lagerText = "";
     const exact = lager.find(l => l.name.toLowerCase() === name.toLowerCase());
     if (exact && exact.menge > 0) {
       const inOrd = lagerMengeInOrderUnit(exact, conv.orderUnit);
@@ -3763,18 +3782,20 @@ function calcBestellung() {
     // ── Runden auf Gebinde ────────────────────────────────────
     let bestellOrd = nachLagerOrd, gebindeAnzahl = 0, warnHtml = "", adjRateHtml = "";
     if (geb > 0 && nachLagerOrd > 0) {
-      gebindeAnzahl    = Math.ceil(nachLagerOrd / geb);
-      let rounded      = gebindeAnzahl * geb;
-      const maxStr     = getMaxAufwand(name, kultur);
-      if (maxStr) {
+      gebindeAnzahl = Math.ceil(nachLagerOrd / geb);
+      let rounded   = gebindeAnzahl * geb;
+      // Use most restrictive max across all kulturen
+      for (const k of kulturen) {
+        const maxStr = getMaxAufwand(name, k);
+        if (!maxStr) continue;
         const mx = maxStr.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
-        if (mx) {
-          const maxGesamt = parseFloat(mx[1].replace(",",".")) * flaeche * conv.factor;
-          if (rounded > maxGesamt) {
-            gebindeAnzahl = Math.max(0, Math.floor(nachLagerOrd / geb));
-            rounded       = gebindeAnzahl * geb;
-            warnHtml      = `<span class="best-warn">⚠ Aufrunden würde Max-Aufwand (${maxStr}) überschreiten → ${gebindeAnzahl} Gebinde</span><br>`;
-          }
+        if (!mx) continue;
+        const maxGesamt = parseFloat(mx[1].replace(",",".")) * flaeche * conv.factor;
+        if (rounded > maxGesamt) {
+          gebindeAnzahl = Math.max(0, Math.floor(nachLagerOrd / geb));
+          rounded       = gebindeAnzahl * geb;
+          warnHtml      = `<span class="best-warn">⚠ Aufrunden würde Max-Aufwand (${maxStr} in ${k}) überschreiten → ${gebindeAnzahl} Gebinde</span><br>`;
+          break;
         }
       }
       bestellOrd = rounded;
@@ -3785,7 +3806,8 @@ function calcBestellung() {
     }
 
     items.push({ name, ein, orderUnit: conv.orderUnit, factor: conv.factor,
-      benoetigt, benOrd, lagerOrd, lagerText, nachLagerOrd, bestellOrd, gebinde: geb, gebindeAnzahl });
+      kulturen, flaeche, benoetigt, benOrd, lagerOrd, lagerText,
+      nachLagerOrd, bestellOrd, gebinde: geb, gebindeAnzahl });
 
     // ── Row result ────────────────────────────────────────────
     let html = `Benötigt: <b>${benoetigt.toFixed(2)} ${ein}</b>`;
@@ -3793,14 +3815,13 @@ function calcBestellung() {
       html += ` <span style="color:var(--muted);font-size:11px">(= ${benOrd.toFixed(3)} ${conv.orderUnit})</span>`;
     if (lagerOrd > 0)
       html += `&nbsp;<span class="best-lager-tag">−${lagerOrd.toFixed(2)} ${conv.orderUnit} Lager</span>&nbsp;→ <b>${nachLagerOrd.toFixed(2)} ${conv.orderUnit}</b>`;
-    if (geb > 0) {
+    if (geb > 0)
       html += `<br>${warnHtml}<span style="color:var(--green);font-weight:700">${gebindeAnzahl} × ${geb} ${conv.orderUnit} = <b>${bestellOrd.toFixed(2)} ${conv.orderUnit}</b></span>${adjRateHtml}`;
-    }
     if (lagerOrd > 0) html += `<div class="best-lager-info">${lagerText}</div>`;
     resEl.innerHTML = html;
   });
 
-  renderBestellErgebnis(items, flaeche, kultur);
+  renderBestellErgebnis(items);
 }
 
 // ── Wirkstoff detection + product lookup ─────────────────────
@@ -3840,29 +3861,32 @@ function getProdukteNurDieserWirkstoff(wirkstoff, kultur) {
   return { names: all.slice(0, 5), hasMore: all.length > 5 };
 }
 
-function formatBestellLine(item, kultur, idx) {
+function formatBestellLine(item, idx) {
   const gebStr = (item.gebindeAnzahl > 0 && item.gebinde > 0)
-    ? ` (${item.gebindeAnzahl} × ${item.gebinde} ${item.orderUnit})`
+    ? ` (${item.gebindeAnzahl} × ${item.gebinde} ${item.orderUnit})` : "";
+  const kulturen = item.kulturen || [];
+  const kulturInfo = kulturen.map(k => {
+    const ms = getMaxAufwand(item.name, k);
+    return ms ? `${k} (max ${ms})` : k;
+  }).join(" + ");
+  const kulturLine = kulturInfo
+    ? `\n   Kultur: ${kulturInfo}${item.flaeche ? ", " + item.flaeche + " ha" : ""}`
     : "";
-  const generika = kultur
-    ? `   → od. Generika mit gleichem Wirkstoffgehalt, zugelassen in ${kultur}`
+  const generika = kulturen.length
+    ? `   → od. Generika mit gleichem Wirkstoffgehalt, zugelassen in ${kulturen.join(" + ")}`
     : `   → od. Generika mit gleichem Wirkstoffgehalt`;
-  return `${idx}. ${item.name}: ${item.bestellOrd.toFixed(2)} ${item.orderUnit}${gebStr}\n${generika}`;
+  return `${idx}. ${item.name}: ${item.bestellOrd.toFixed(2)} ${item.orderUnit}${gebStr}${kulturLine}\n${generika}`;
 }
 
-function renderBestellErgebnis(items, flaeche, kultur) {
+function renderBestellErgebnis(items) {
   const el = document.getElementById("best-ergebnis");
   if (!el) return;
   const order = items.filter(i => i.bestellOrd > 0);
-  if (!order.length || !flaeche) { el.style.display = "none"; _bestItems = []; return; }
+  if (!order.length) { el.style.display = "none"; _bestItems = []; return; }
   _bestItems = order;
 
-  const kulturen = getBestKulturen();
-  const kulturStr = kulturen.length ? kulturen.join(" + ") : (kultur || "");
-  const lines = order.map((i, idx) => formatBestellLine(i, kulturStr, idx + 1));
-  const kulturLine = kulturStr ? `, Kultur: ${kulturStr}` : "";
-  const flaecheLine = flaeche ? `, ca. ${flaeche} ha` : "";
-  const waMsg = `Hallo,\n\nbitte Preise für folgende PSM${kulturLine}${flaecheLine}:\n\n${lines.join("\n\n")}\n\nDanke und Gruß!`;
+  const lines = order.map((i, idx) => formatBestellLine(i, idx + 1));
+  const waMsg = `Hallo,\n\nbitte Preise für folgende PSM:\n\n${lines.join("\n\n")}\n\nDanke und Gruß!`;
   const vk    = loadVerkaeufer();
 
   // Build price-entry cards (restore saved values)
@@ -4003,18 +4027,17 @@ function saveBestellungen(list) { localStorage.setItem("psm_bestellungen", JSON.
 
 function saveBestellung() {
   const waEl = document.getElementById("best-wa-text");
-  const flaeche = parseFloat(document.getElementById("best-flaeche")?.value) || 0;
   if (!_bestItems.length) { toast("⚠ Keine Produkte zum Speichern"); return; }
-  const kulturen = getBestKulturen();
+  const allKulturen = [...new Set(_bestItems.flatMap(i => i.kulturen || []))];
   const list = loadBestellungen();
   list.unshift({
     id: "bo_" + Date.now(),
     datum: new Date().toLocaleDateString("de-DE"),
-    kulturen,
-    flaeche,
+    kulturen: allKulturen,
     produkte: _bestItems.map(i => ({
       name: i.name, bestellOrd: i.bestellOrd, orderUnit: i.orderUnit,
-      gebindeAnzahl: i.gebindeAnzahl, gebinde: i.gebinde
+      gebindeAnzahl: i.gebindeAnzahl, gebinde: i.gebinde,
+      kulturen: i.kulturen, flaeche: i.flaeche
     })),
     waMsg: waEl?.value || "",
     geliefert: false
