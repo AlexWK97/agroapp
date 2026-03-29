@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.16</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.17</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1568,34 +1568,32 @@ const DEFAULT_FELDER = [
 
 // Felder: extended objects {id, name, flaeche, kultur, gelbschalen}
 function loadFelder() {
-  const stored = localStorage.getItem("stammdaten_felder");
-  let felder = stored ? JSON.parse(stored) : [];
-  if (!felder.length) {
-    // Check old migration path, otherwise use built-in defaults
-    const old = JSON.parse(localStorage.getItem("felder") || "null");
-    if (old && old.length) {
-      felder = old.map((name, i) => ({ id: String(Date.now() + i), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1"] }));
-    } else {
-      felder = DEFAULT_FELDER.map(d => ({ ...d }));
+  try {
+    const stored = localStorage.getItem("stammdaten_felder");
+    let felder = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(felder) || !felder.length) {
+      try {
+        const old = JSON.parse(localStorage.getItem("felder") || "null");
+        if (Array.isArray(old) && old.length) {
+          felder = old.map((name, i) => ({ id: String(Date.now() + i), name, flaeche: null, kultur: null, gelbschalen: ["Gelbschale 1"] }));
+        } else {
+          felder = DEFAULT_FELDER.map(d => ({ ...d }));
+        }
+      } catch { felder = DEFAULT_FELDER.map(d => ({ ...d })); }
     }
-  }
-  // Ensure all felder have gelbschalen
-  felder = felder.map(f => ({
-    ...f,
-    gelbschalen: f.gelbschalen || ["Gelbschale 1"]
-  }));
-  return felder;
+    return felder.map(f => ({ ...f, gelbschalen: f.gelbschalen || ["Gelbschale 1"] }));
+  } catch { return DEFAULT_FELDER.map(d => ({ ...d })); }
 }
 function saveFelder(f) { localStorage.setItem("stammdaten_felder", JSON.stringify(f)); }
 
 // Custom + deleted kulturen
-function loadCustomKulturen()    { return JSON.parse(localStorage.getItem("custom_kulturen")    || "[]"); }
-function saveCustomKulturen(k)   { localStorage.setItem("custom_kulturen",    JSON.stringify(k)); }
-function loadDeletedKulturen()   { return JSON.parse(localStorage.getItem("deleted_kulturen")   || "[]"); }
-function saveDeletedKulturen(d)  { localStorage.setItem("deleted_kulturen",   JSON.stringify(d)); }
+function loadCustomKulturen()  { try { return JSON.parse(localStorage.getItem("custom_kulturen")  || "[]"); } catch { return []; } }
+function saveCustomKulturen(k) { localStorage.setItem("custom_kulturen",  JSON.stringify(k)); }
+function loadDeletedKulturen() { try { return JSON.parse(localStorage.getItem("deleted_kulturen") || "[]"); } catch { return []; } }
+function saveDeletedKulturen(d){ localStorage.setItem("deleted_kulturen", JSON.stringify(d)); }
 
 // Sorten: { kulturName: ["Sorte1", "Sorte2", ...] }
-function loadSorten()   { return JSON.parse(localStorage.getItem("kulturen_sorten") || "{}"); }
+function loadSorten()   { try { return JSON.parse(localStorage.getItem("kulturen_sorten") || "{}"); } catch { return {}; } }
 function saveSorten(s)  { localStorage.setItem("kulturen_sorten", JSON.stringify(s)); }
 
 // All kulturen = built-in (minus deleted) + custom
