@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.19</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.20</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -3865,17 +3865,10 @@ function formatBestellLine(item, idx) {
   const gebStr = (item.gebindeAnzahl > 0 && item.gebinde > 0)
     ? ` (${item.gebindeAnzahl} × ${item.gebinde} ${item.orderUnit})` : "";
   const kulturen = item.kulturen || [];
-  const kulturInfo = kulturen.map(k => {
-    const ms = getMaxAufwand(item.name, k);
-    return ms ? `${k} (max ${ms})` : k;
-  }).join(" + ");
-  const kulturLine = kulturInfo
-    ? `\n   Kultur: ${kulturInfo}${item.flaeche ? ", " + item.flaeche + " ha" : ""}`
-    : "";
   const generika = kulturen.length
     ? `   → od. Generika mit gleichem Wirkstoffgehalt, zugelassen in ${kulturen.join(" + ")}`
     : `   → od. Generika mit gleichem Wirkstoffgehalt`;
-  return `${idx}. ${item.name}: ${item.bestellOrd.toFixed(2)} ${item.orderUnit}${gebStr}${kulturLine}\n${generika}`;
+  return `${idx}. ${item.name}: ${item.bestellOrd.toFixed(2)} ${item.orderUnit}${gebStr}\n${generika}`;
 }
 
 function renderBestellErgebnis(items) {
