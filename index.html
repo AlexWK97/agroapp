@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.14</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.16</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -3640,7 +3640,7 @@ function selectBestProdukt(rid, name) {
       if (mx) {
         const mpmEl = document.getElementById("bpm-" + rid);
         const einEl = document.getElementById("bpe-" + rid);
-        if (mpmEl && !mpmEl.value) mpmEl.value = mx[1].replace(",", ".");
+        if (mpmEl) mpmEl.value = mx[1].replace(",", ".");
         if (einEl) {
           const opt = [...einEl.options].find(o => o.value.toLowerCase() === mx[2].toLowerCase());
           if (opt) { einEl.value = opt.value; onBestEinheitChange(rid); return; }
@@ -3795,21 +3795,14 @@ function getProdukteNurDieserWirkstoff(wirkstoff, kultur) {
   return { names: all.slice(0, 5), hasMore: all.length > 5 };
 }
 
-function formatBestellLine(item, kultur) {
-  const menge = `${item.bestellOrd.toFixed(2)} ${item.orderUnit}`;
-  if (isWirkstoffInput(item.name)) {
-    const info = kultur ? getProdukteNurDieserWirkstoff(item.name, kultur) : { names: [], hasMore: false };
-    let beispiele = "";
-    if (info.names.length > 0) {
-      beispiele = ` (Bspw. ${info.names.join(", ")}${info.hasMore ? " u.a." : ""}`;
-      beispiele += kultur ? `, zugelassen in ${kultur})` : ")";
-    } else if (kultur) {
-      beispiele = ` (zugelassen in ${kultur})`;
-    }
-    return `- ${menge} ${item.name}${beispiele}`;
-  }
-  // Concrete product
-  return `- ${item.name}: ${menge}${kultur ? " (zugelassen in " + kultur + ")" : ""}`;
+function formatBestellLine(item, kultur, idx) {
+  const gebStr = (item.gebindeAnzahl > 0 && item.gebinde > 0)
+    ? ` (${item.gebindeAnzahl} × ${item.gebinde} ${item.orderUnit})`
+    : "";
+  const generika = kultur
+    ? `   → od. Generika mit gleichem Wirkstoffgehalt, zugelassen in ${kultur}`
+    : `   → od. Generika mit gleichem Wirkstoffgehalt`;
+  return `${idx}. ${item.name}: ${item.bestellOrd.toFixed(2)} ${item.orderUnit}${gebStr}\n${generika}`;
 }
 
 function renderBestellErgebnis(items, flaeche, kultur) {
@@ -3819,8 +3812,10 @@ function renderBestellErgebnis(items, flaeche, kultur) {
   if (!order.length || !flaeche) { el.style.display = "none"; _bestItems = []; return; }
   _bestItems = order;
 
-  const lines = order.map(i => formatBestellLine(i, kultur));
-  const waMsg = `Hallo, ich bräuchte mal Preise für folgende Mittel:\n${lines.join("\n")}\nVielen Dank!`;
+  const lines = order.map((i, idx) => formatBestellLine(i, kultur, idx + 1));
+  const kulturLine = kultur ? `, Kultur: ${kultur}` : "";
+  const flaecheLine = flaeche ? `, ca. ${flaeche} ha` : "";
+  const waMsg = `Hallo,\n\nbitte Preise für folgende PSM${kulturLine}${flaecheLine}:\n\n${lines.join("\n\n")}\n\nDanke und Gruß!`;
   const vk    = loadVerkaeufer();
 
   // Build price-entry cards (restore saved values)
