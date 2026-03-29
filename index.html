@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.15</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.16</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -3640,7 +3640,7 @@ function selectBestProdukt(rid, name) {
       if (mx) {
         const mpmEl = document.getElementById("bpm-" + rid);
         const einEl = document.getElementById("bpe-" + rid);
-        if (mpmEl && !mpmEl.value) mpmEl.value = mx[1].replace(",", ".");
+        if (mpmEl) mpmEl.value = mx[1].replace(",", ".");
         if (einEl) {
           const opt = [...einEl.options].find(o => o.value.toLowerCase() === mx[2].toLowerCase());
           if (opt) { einEl.value = opt.value; onBestEinheitChange(rid); return; }
