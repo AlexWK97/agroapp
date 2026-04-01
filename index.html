@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.21</span></h1>
+  <h1>🌱 AgroApp <span id="app-version" style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.24</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1606,7 +1606,15 @@ function allKulturen() {
   return [...Object.keys(CONFIG).filter(k => !deleted.includes(k)), ...loadCustomKulturen()];
 }
 
-function loadData()     { return JSON.parse(localStorage.getItem("bonitur") || "[]"); }
+function loadData() {
+  try {
+    return JSON.parse(localStorage.getItem("bonitur") || "[]");
+  } catch {
+    toast("⚠️ Gespeicherte Bonitur-Daten waren fehlerhaft und wurden zurückgesetzt");
+    localStorage.removeItem("bonitur");
+    return [];
+  }
+}
 function saveData(d)    { localStorage.setItem("bonitur", JSON.stringify(d)); }
 
 // ════════════════════════════════════════════════════════════════
@@ -1871,6 +1879,14 @@ function selectSchaedling(s) {
 function idx(name) {
   return S.zNames.indexOf(name);
 }
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 function encAttr(s) {
   return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;");
 }
@@ -1953,15 +1969,15 @@ function renderHistorie() {
         countsHtml = Object.entries(e.zaehlung).map(([gsName, unterarten]) => {
           const unterartCounts = Object.entries(unterarten)
             .filter(([_, v]) => v > 0)
-            .map(([k, v]) => `${k}: <span>${v}</span>`)
+            .map(([k, v]) => `${escHtml(k)}: <span>${v}</span>`)
             .join(", ");
-          return unterartCounts ? `<strong>${gsName}:</strong> ${unterartCounts}` : null;
+          return unterartCounts ? `<strong>${escHtml(gsName)}:</strong> ${unterartCounts}` : null;
         }).filter(Boolean).join(" &nbsp;|&nbsp; ");
       } else {
         // Old flat format: { unterartName: count }
         countsHtml = Object.entries(e.zaehlung)
           .filter(([_, v]) => v > 0)
-          .map(([k, v]) => `${k}: <span>${v}</span>`)
+          .map(([k, v]) => `${escHtml(k)}: <span>${v}</span>`)
           .join(" &nbsp;·&nbsp; ");
       }
     }
@@ -1970,15 +1986,15 @@ function renderHistorie() {
       <div class="entry-card">
         <button class="del-btn" data-id="${e.id}">×</button>
         <div class="entry-top">
-          <span class="entry-feld">📍 ${e.feld}</span>
+          <span class="entry-feld">📍 ${escHtml(e.feld)}</span>
           <span class="entry-date">${d}</span>
         </div>
         <div class="entry-tags">
-          <span class="tag">${e.kultur}</span>
-          <span class="tag">${e.schaedling}</span>
+          <span class="tag">${escHtml(e.kultur)}</span>
+          <span class="tag">${escHtml(e.schaedling)}</span>
         </div>
         <div class="entry-counts">${countsHtml}</div>
-        ${e.notiz ? `<div class="entry-notiz">💬 ${e.notiz}</div>` : ""}
+        ${e.notiz ? `<div class="entry-notiz">💬 ${escHtml(e.notiz)}</div>` : ""}
       </div>`;
   }).join("");
 
@@ -2006,10 +2022,10 @@ function initDiagramme() {
 
   document.getElementById("ch-kultur").innerHTML =
     '<option value="">Alle Kulturen</option>' +
-    kulturen.map(k => `<option value="${k}" ${k===kSel?"selected":""}>${k}</option>`).join("");
+    kulturen.map(k => `<option value="${encAttr(k)}" ${k===kSel?"selected":""}>${escHtml(k)}</option>`).join("");
   document.getElementById("ch-feld").innerHTML =
     '<option value="">Alle Felder</option>' +
-    felder.map(f => `<option value="${f}" ${f===fSel?"selected":""}>${f}</option>`).join("");
+    felder.map(f => `<option value="${encAttr(f)}" ${f===fSel?"selected":""}>${escHtml(f)}</option>`).join("");
 
   updateCharts();
 }
@@ -4570,8 +4586,13 @@ goPage("monitor");
 if (typeof PSM !== "undefined") initPsmPage();
 </script>
 <script>
+  const APP_VERSION = "1.24";
+  const versionEl = document.getElementById("app-version");
+  if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js");
+    navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`).catch(() => {
+      console.warn("Service Worker konnte nicht registriert werden.");
+    });
   }
 </script>
 </body>
