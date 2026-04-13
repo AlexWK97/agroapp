@@ -1,7 +1,8 @@
-const CACHE = "agroapp-v24";
+const CACHE = "agroapp-v25";
 const ASSETS = [
   "/agroapp/",
   "/agroapp/index.html",
+  "/agroapp/psm_data.js",
   "/agroapp/manifest.json",
   "/agroapp/icon-192.png",
   "/agroapp/icon-512.png",
