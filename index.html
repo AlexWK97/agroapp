@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.23</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.24</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1873,6 +1873,9 @@ function idx(name) {
 }
 function encAttr(s) {
   return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;");
+}
+function encHtml(s) {
+  return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 // ── Save ──────────────────────────────────────────
@@ -3445,9 +3448,13 @@ function renderLager() {
       const low     = item.menge <= (ein === "g" ? 500 : ein === "ml" ? 500 : 1);
       const mengeStr = fmt(item.menge, 3) + " " + ein;
       const wertStr  = item.wert_je_einheit > 0 ? ` · ${fmt(item.wert_je_einheit)} €/${ein}` : "";
+      const ws       = getWirkstoffForProdukt(item.name);
+      const nameHtml = ws
+        ? `${encHtml(item.name)} <span style="font-weight:500;color:var(--muted)">(Wirkstoff: ${encHtml(ws)})</span>`
+        : encHtml(item.name);
       return `<div class="lager-item">
         <div class="lager-item-info">
-          <div class="lager-item-name">${item.name}</div>
+          <div class="lager-item-name">${nameHtml}</div>
           <div class="${low ? "lager-item-menge low" : "lager-item-menge"}">${mengeStr}${wertStr}${low ? " ⚠ Nachbestellen" : ""}</div>
         </div>
         <div class="lager-item-actions">
@@ -3716,10 +3723,45 @@ function lagerMengeInOrderUnit(item, orderUnit) {
   return 0; // incompatible (e.g. l vs kg)
 }
 
+let _produktWirkstoffIndex = null;
+function _normProduktName(s) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z0-9äöüß]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+function _addProduktWs(map, key, ws) {
+  if (!key || !ws) return;
+  if (!map[key]) map[key] = new Set();
+  map[key].add(ws);
+}
+function _buildProduktWirkstoffIndex() {
+  if (_produktWirkstoffIndex || typeof PSM === "undefined") return;
+  const exact = Object.create(null);
+  const norm = Object.create(null);
+  for (const r of PSM.d) {
+    const name = PSM.n[r[0]] || "";
+    const ws = PSM.w[r[3]] || "";
+    _addProduktWs(exact, name.toLowerCase(), ws);
+    _addProduktWs(norm, _normProduktName(name), ws);
+  }
+  _produktWirkstoffIndex = { exact, norm };
+}
+function _singleWs(setLike) {
+  if (!setLike || setLike.size !== 1) return null;
+  for (const v of setLike) return v;
+  return null;
+}
 function getWirkstoffForProdukt(name) {
   if (!name || typeof PSM === "undefined") return null;
-  const r = PSM.d.find(r => PSM.n[r[0]] === name);
-  return r ? (PSM.w[r[3]] || null) : null;
+  _buildProduktWirkstoffIndex();
+  const wsExact = _singleWs(_produktWirkstoffIndex?.exact?.[name.trim().toLowerCase()]);
+  if (wsExact) return wsExact;
+  const wsNorm = _singleWs(_produktWirkstoffIndex?.norm?.[_normProduktName(name)]);
+  if (wsNorm) return wsNorm;
+  return null;
 }
 
 function calcBestellung() {
