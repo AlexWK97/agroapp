@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.29</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.30</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -4598,11 +4598,25 @@ function kulturMatches(userKultur, psmKultur) {
 
 function getMaxAufwand(produktName, kulturName) {
   if (!produktName || !kulturName || typeof PSM === "undefined") return null;
+  let bestText = null;
+  let bestOrd  = -1;
   for (const r of PSM.d) {
     if (PSM.n[r[0]] !== produktName) continue;
-    if (kulturMatches(kulturName, PSM.k[r[1]])) return r[4] || null;
+    if (!kulturMatches(kulturName, PSM.k[r[1]])) continue;
+    const txt = r[4] || null;
+    if (!txt) continue;
+    const mx = String(txt).match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
+    if (!mx) continue;
+    const val = parseFloat(mx[1].replace(",", "."));
+    if (!Number.isFinite(val) || val <= 0) continue;
+    const conv = bestOrderConv(mx[2].toLowerCase());
+    const ord  = val * conv.factor; // normalized to order unit
+    if (ord > bestOrd) {
+      bestOrd = ord;
+      bestText = txt;
+    }
   }
-  return null;
+  return bestText;
 }
 
 function renderSdMassnahmen() {
