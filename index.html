@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.30</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.31</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -4598,10 +4598,22 @@ function kulturMatches(userKultur, psmKultur) {
 
 function getMaxAufwand(produktName, kulturName) {
   if (!produktName || !kulturName || typeof PSM === "undefined") return null;
+  const isWsInput = isWirkstoffInput(produktName);
+  let wi = -1;
+  if (isWsInput) {
+    buildPwMap();
+    wi = PSM.w.indexOf(produktName);
+    if (wi === -1) return null;
+  }
   let bestText = null;
   let bestOrd  = -1;
   for (const r of PSM.d) {
-    if (PSM.n[r[0]] !== produktName) continue;
+    if (isWsInput) {
+      if (r[3] !== wi) continue;                 // wrong wirkstoff
+      if (_pwMap[r[0]]?.size !== 1) continue;   // only pure single-wirkstoff products
+    } else {
+      if (PSM.n[r[0]] !== produktName) continue;
+    }
     if (!kulturMatches(kulturName, PSM.k[r[1]])) continue;
     const txt = r[4] || null;
     if (!txt) continue;
