@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.24</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.25</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1183,6 +1183,21 @@
         placeholder="z.B. 23.50" min="0" step="0.01" style="margin-bottom:0" />
     </div>
     <button class="btn-confirm" style="width:100%;margin-top:12px" onclick="addLagerEintrag()">+ Hinzufügen</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔎 Lager durchsuchen</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="psm-input" id="lager-suche-modus" onchange="renderLager()" style="width:170px;margin-bottom:0">
+        <option value="both">Name oder Wirkstoff</option>
+        <option value="name">Nur Name</option>
+        <option value="wirkstoff">Nur Wirkstoff</option>
+      </select>
+      <input class="psm-input" id="lager-suche-input" type="text"
+        placeholder="z.B. Karate oder lambda-Cyhalothrin"
+        oninput="renderLager()"
+        style="flex:1;min-width:220px;margin-bottom:0" />
+    </div>
   </div>
 
   <div id="lager-list"></div>
@@ -3439,11 +3454,32 @@ function renderLager() {
 
   const gesamtwert = lager.reduce((s, e) => s + (e.menge * (e.wert_je_einheit || 0)), 0);
   const sorted = [...lager].sort((a, b) => a.name.localeCompare(b.name));
+  const q = (document.getElementById("lager-suche-input")?.value || "").trim().toLowerCase();
+  const mode = document.getElementById("lager-suche-modus")?.value || "both";
+  const filtered = q
+    ? sorted.filter(item => {
+        const n = (item.name || "").toLowerCase();
+        const w = (getWirkstoffForProdukt(item.name) || "").toLowerCase();
+        if (mode === "name") return n.includes(q);
+        if (mode === "wirkstoff") return w.includes(q);
+        return n.includes(q) || w.includes(q);
+      })
+    : sorted;
   const fmt = (n, d=2) => n.toLocaleString("de-DE", {minimumFractionDigits:0, maximumFractionDigits:d});
+  const listLabel = q
+    ? `<strong>${filtered.length}</strong> von <strong>${lager.length}</strong> Mitteln`
+    : `<strong>${lager.length}</strong> Mittel`;
+
+  if (!filtered.length) {
+    container.innerHTML =
+      `<div class="lager-gesamt">${listLabel}${gesamtwert > 0 ? ` · Lagerwert <strong>${fmt(gesamtwert)} €</strong>` : ""}</div>` +
+      `<div class="lager-empty"><p>Keine Treffer für <strong>${encHtml(q)}</strong>.</p></div>`;
+    return;
+  }
 
   container.innerHTML =
-    `<div class="lager-gesamt"><strong>${lager.length}</strong> Mittel${gesamtwert > 0 ? ` · Lagerwert <strong>${fmt(gesamtwert)} €</strong>` : ""}</div>` +
-    sorted.map(item => {
+    `<div class="lager-gesamt">${listLabel}${gesamtwert > 0 ? ` · Lagerwert <strong>${fmt(gesamtwert)} €</strong>` : ""}</div>` +
+    filtered.map(item => {
       const ein     = item.einheit || "l";
       const low     = item.menge <= (ein === "g" ? 500 : ein === "ml" ? 500 : 1);
       const mengeStr = fmt(item.menge, 3) + " " + ein;
