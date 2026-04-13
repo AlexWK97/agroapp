@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.28</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.29</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -3970,8 +3970,23 @@ function calcBestellung() {
     const benoetigt = mph * flaeche;
     const benOrd    = benoetigt * conv.factor;
     const key       = `${name.toLowerCase()}__${conv.orderUnit.toLowerCase()}`;
+    let rowMaxOrd   = null;
 
-    rawRows.push({ key, rid, resEl, name, ein, orderUnit: conv.orderUnit, factor: conv.factor, gebinde: geb, kulturen, flaeche, benoetigt, benOrd });
+    // Most restrictive max for this row across selected kulturen
+    for (const k of kulturen) {
+      const maxStr = getMaxAufwand(name, k);
+      if (!maxStr) continue;
+      const mx = maxStr.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
+      if (!mx) continue;
+      const mxVal = parseFloat(mx[1].replace(",", "."));
+      if (!Number.isFinite(mxVal) || mxVal <= 0) continue;
+      const mxConv = bestOrderConv(mx[2].toLowerCase());
+      if (mxConv.orderUnit !== conv.orderUnit) continue;
+      const allowed = mxVal * flaeche * mxConv.factor;
+      rowMaxOrd = rowMaxOrd == null ? allowed : Math.min(rowMaxOrd, allowed);
+    }
+
+    rawRows.push({ key, rid, resEl, name, ein, orderUnit: conv.orderUnit, factor: conv.factor, gebinde: geb, kulturen, flaeche, benoetigt, benOrd, rowMaxOrd });
 
     if (!grouped[key]) {
       grouped[key] = {
@@ -3990,7 +4005,10 @@ function calcBestellung() {
         lagerText: "",
         nachLagerOrd: 0,
         bestellOrd: 0,
-        gebindeAnzahl: 0
+        gebindeAnzahl: 0,
+        maxOrd: 0,
+        hasUnknownMax: false,
+        warn: ""
       };
     }
 
@@ -4000,6 +4018,8 @@ function calcBestellung() {
     g.benOrd += benOrd;
     if (g.gebinde === 0 && geb > 0) g.gebinde = geb;
     kulturen.forEach(k => { if (k && !g._kset.has(k)) { g._kset.add(k); g.kulturen.push(k); } });
+    if (rowMaxOrd == null) g.hasUnknownMax = true;
+    else g.maxOrd += rowMaxOrd;
   });
 
   const items = Object.values(grouped).map(g => {
@@ -4028,15 +4048,28 @@ function calcBestellung() {
     }
 
     const nachLagerOrd = Math.max(0, g.benOrd - lagerOrd);
+    const packSize = g.gebinde > 0 ? g.gebinde : 5; // default standard pack
+    const hasMax = !g.hasUnknownMax && g.maxOrd > 0;
+    const maxOrd = hasMax ? g.maxOrd : null;
+
     let bestellOrd = nachLagerOrd;
     let gebindeAnzahl = 0;
-    if (g.gebinde > 0 && nachLagerOrd > 0) {
-      gebindeAnzahl = Math.ceil(nachLagerOrd / g.gebinde);
-      bestellOrd = gebindeAnzahl * g.gebinde;
+    let warn = "";
+
+    if (packSize > 0 && nachLagerOrd > 0) {
+      gebindeAnzahl = Math.ceil(nachLagerOrd / packSize);
+      bestellOrd = gebindeAnzahl * packSize;
+
+      // Never exceed legally allowed max after rounding
+      if (maxOrd != null && bestellOrd > maxOrd + 1e-9) {
+        gebindeAnzahl = Math.max(0, Math.floor(nachLagerOrd / packSize));
+        bestellOrd = gebindeAnzahl * packSize;
+        warn = `⚠ Aufrunden würde Max-Aufwand überschreiten → auf ${bestellOrd.toFixed(2)} ${g.orderUnit} abgerundet`;
+      }
     }
-    if (g.gebinde === 0 && nachLagerOrd > 0) bestellOrd = Math.ceil(nachLagerOrd);
 
     return {
+      key: g.key,
       name: g.name,
       ein: g.ein,
       orderUnit: g.orderUnit,
@@ -4049,13 +4082,14 @@ function calcBestellung() {
       lagerText,
       nachLagerOrd,
       bestellOrd,
-      gebinde: g.gebinde,
-      gebindeAnzahl
+      gebinde: packSize,
+      gebindeAnzahl,
+      warn
     };
   });
 
   const byKey = {};
-  items.forEach(i => { byKey[i.key || `${i.name.toLowerCase()}__${i.orderUnit.toLowerCase()}`] = i; });
+  items.forEach(i => { byKey[i.key] = i; });
 
   rawRows.forEach(r => {
     const g = byKey[r.key];
@@ -4067,6 +4101,7 @@ function calcBestellung() {
     html += `<br><span style="color:var(--muted);font-size:11px">Gesamt für ${encHtml(g.name)}: ${g.bestellOrd.toFixed(2)} ${g.orderUnit}`;
     if (g.kulturen.length) html += ` · Kulturen: ${encHtml(g.kulturen.join(" + "))}`;
     html += `</span>`;
+    if (g.warn) html += `<div class="best-warn">${encHtml(g.warn)}</div>`;
     if (g.lagerOrd > 0) html += `<div class="best-lager-info">${g.lagerText}</div>`;
     r.resEl.innerHTML = html;
   });
