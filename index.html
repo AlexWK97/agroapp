@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.26</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.27</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -3908,7 +3908,8 @@ function getWirkstoffForProdukt(name) {
 function calcBestellung() {
   const lager = loadLager();
   const rows  = document.querySelectorAll("#best-produkte-list .best-produkt-row");
-  const items = [];
+  const rawRows = [];
+  const grouped = {};
 
   rows.forEach(row => {
     const rid      = row.id.replace("bpr-", "");
@@ -3918,11 +3919,9 @@ function calcBestellung() {
     const geb      = parseFloat(document.getElementById("bpg-" + rid)?.value) || 0;
     const resEl    = document.getElementById("bpr-res-" + rid);
     const kulturen = getBestProduktKulturen(rid);
-    const kultur   = kulturen[0] || "";
 
-    // Auto-calc fläche from kulturen if not manually set
-    const flaEl   = document.getElementById("bpfla-" + rid);
-    let flaeche   = parseFloat(flaEl?.value) || 0;
+    const flaEl = document.getElementById("bpfla-" + rid);
+    let flaeche = parseFloat(flaEl?.value) || 0;
     if (!flaeche && kulturen.length) {
       flaeche = loadFelder()
         .filter(f => kulturen.includes(f.kultur) && Number(f.flaeche) > 0)
@@ -3936,75 +3935,106 @@ function calcBestellung() {
     const conv      = bestOrderConv(ein);
     const benoetigt = mph * flaeche;
     const benOrd    = benoetigt * conv.factor;
+    const key       = `${name.toLowerCase()}__${conv.orderUnit.toLowerCase()}`;
 
-    // ── Lager check ───────────────────────────────────────────
+    rawRows.push({ key, rid, resEl, name, ein, orderUnit: conv.orderUnit, factor: conv.factor, gebinde: geb, kulturen, flaeche, benoetigt, benOrd });
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        key,
+        name,
+        ein,
+        orderUnit: conv.orderUnit,
+        factor: conv.factor,
+        gebinde: geb > 0 ? geb : 0,
+        kulturen: [],
+        _kset: new Set(),
+        flaeche: 0,
+        benoetigt: 0,
+        benOrd: 0,
+        lagerOrd: 0,
+        lagerText: "",
+        nachLagerOrd: 0,
+        bestellOrd: 0,
+        gebindeAnzahl: 0
+      };
+    }
+
+    const g = grouped[key];
+    g.flaeche += flaeche;
+    g.benoetigt += benoetigt;
+    g.benOrd += benOrd;
+    if (g.gebinde === 0 && geb > 0) g.gebinde = geb;
+    kulturen.forEach(k => { if (k && !g._kset.has(k)) { g._kset.add(k); g.kulturen.push(k); } });
+  });
+
+  const items = Object.values(grouped).map(g => {
     let lagerOrd = 0, lagerText = "";
-    const exact = lager.find(l => l.name.toLowerCase() === name.toLowerCase());
+    const exact = lager.find(l => (l.name || "").toLowerCase() === g.name.toLowerCase());
     if (exact && exact.menge > 0) {
-      const inOrd = lagerMengeInOrderUnit(exact, conv.orderUnit);
-      lagerOrd  = Math.min(inOrd, benOrd);
-      lagerText = `📦 ${exact.menge} ${exact.einheit||"l"} „${exact.name}" im Lager – wird abgezogen`;
+      const inOrd = lagerMengeInOrderUnit(exact, g.orderUnit);
+      lagerOrd  = Math.min(inOrd, g.benOrd);
+      lagerText = `📦 ${exact.menge} ${exact.einheit||"l"} „${exact.name}" im Lager – wird einmalig abgezogen`;
     } else {
-      const ws = getWirkstoffForProdukt(name);
-      if (ws && kultur && typeof PSM !== "undefined") {
+      const ws = getWirkstoffForProdukt(g.name);
+      if (ws && g.kulturen.length && typeof PSM !== "undefined") {
         for (const li of lager) {
           if (!li.menge || li.menge <= 0) continue;
           if (getWirkstoffForProdukt(li.name) !== ws) continue;
-          if (PSM.d.some(r => PSM.n[r[0]] === li.name && kulturMatches(kultur, PSM.k[r[1]]))) {
-            const inOrd = lagerMengeInOrderUnit(li, conv.orderUnit);
-            lagerOrd  = Math.min(inOrd, benOrd);
-            lagerText = `📦 ${li.menge} ${li.einheit||"l"} „${li.name}" im Lager (gleicher Wirkstoff: ${ws}) – wird abgezogen`;
-            break;
-          }
-        }
-      }
-    }
-
-    const nachLagerOrd = Math.max(0, benOrd - lagerOrd);
-
-    // ── Runden auf Gebinde ────────────────────────────────────
-    let bestellOrd = nachLagerOrd, gebindeAnzahl = 0, warnHtml = "", adjRateHtml = "";
-    if (geb > 0 && nachLagerOrd > 0) {
-      gebindeAnzahl = Math.ceil(nachLagerOrd / geb);
-      let rounded   = gebindeAnzahl * geb;
-      // Use most restrictive max across all kulturen
-      for (const k of kulturen) {
-        const maxStr = getMaxAufwand(name, k);
-        if (!maxStr) continue;
-        const mx = maxStr.match(/([\d,.]+)\s*(l\/ha|kg\/ha|g\/ha|ml\/ha)/i);
-        if (!mx) continue;
-        const maxGesamt = parseFloat(mx[1].replace(",",".")) * flaeche * conv.factor;
-        if (rounded > maxGesamt) {
-          gebindeAnzahl = Math.max(0, Math.floor(nachLagerOrd / geb));
-          rounded       = gebindeAnzahl * geb;
-          warnHtml      = `<span class="best-warn">⚠ Aufrunden würde Max-Aufwand (${maxStr} in ${k}) überschreiten → ${gebindeAnzahl} Gebinde</span><br>`;
+          const passt = g.kulturen.some(k =>
+            PSM.d.some(r => PSM.n[r[0]] === li.name && kulturMatches(k, PSM.k[r[1]]))
+          );
+          if (!passt) continue;
+          const inOrd = lagerMengeInOrderUnit(li, g.orderUnit);
+          lagerOrd  = Math.min(inOrd, g.benOrd);
+          lagerText = `📦 ${li.menge} ${li.einheit||"l"} „${li.name}" im Lager (gleicher Wirkstoff: ${ws}) – wird einmalig abgezogen`;
           break;
         }
       }
-      bestellOrd = rounded;
-      if (flaeche > 0 && bestellOrd > 0) {
-        const adjRate = (bestellOrd / conv.factor) / flaeche;
-        adjRateHtml = `&nbsp;<span style="color:#555;font-size:11px">→ angepasst: ${adjRate.toFixed(2)} ${ein}</span>`;
-      }
     }
 
-    // Round up to whole unit when no Gebinde set
-    if (geb === 0 && nachLagerOrd > 0) bestellOrd = Math.ceil(nachLagerOrd);
+    const nachLagerOrd = Math.max(0, g.benOrd - lagerOrd);
+    let bestellOrd = nachLagerOrd;
+    let gebindeAnzahl = 0;
+    if (g.gebinde > 0 && nachLagerOrd > 0) {
+      gebindeAnzahl = Math.ceil(nachLagerOrd / g.gebinde);
+      bestellOrd = gebindeAnzahl * g.gebinde;
+    }
+    if (g.gebinde === 0 && nachLagerOrd > 0) bestellOrd = Math.ceil(nachLagerOrd);
 
-    items.push({ name, ein, orderUnit: conv.orderUnit, factor: conv.factor,
-      kulturen, flaeche, benoetigt, benOrd, lagerOrd, lagerText,
-      nachLagerOrd, bestellOrd, gebinde: geb, gebindeAnzahl });
+    return {
+      name: g.name,
+      ein: g.ein,
+      orderUnit: g.orderUnit,
+      factor: g.factor,
+      kulturen: g.kulturen,
+      flaeche: g.flaeche,
+      benoetigt: g.benoetigt,
+      benOrd: g.benOrd,
+      lagerOrd,
+      lagerText,
+      nachLagerOrd,
+      bestellOrd,
+      gebinde: g.gebinde,
+      gebindeAnzahl
+    };
+  });
 
-    // ── Row result ────────────────────────────────────────────
-    let html = `Benötigt: <b>${benoetigt.toFixed(2)} ${ein}</b>`;
-    if (conv.factor !== 1)
-      html += ` <span style="color:var(--muted);font-size:11px">(= ${benOrd.toFixed(3)} ${conv.orderUnit})</span>`;
-    if (lagerOrd > 0)
-      html += `&nbsp;<span class="best-lager-tag">−${lagerOrd.toFixed(2)} ${conv.orderUnit} Lager</span>&nbsp;→ <b>${nachLagerOrd.toFixed(2)} ${conv.orderUnit}</b>`;
-    if (geb > 0)
-      html += `<br>${warnHtml}<span style="color:var(--green);font-weight:700">${gebindeAnzahl} × ${geb} ${conv.orderUnit} = <b>${bestellOrd.toFixed(2)} ${conv.orderUnit}</b></span>${adjRateHtml}`;
-    if (lagerOrd > 0) html += `<div class="best-lager-info">${lagerText}</div>`;
-    resEl.innerHTML = html;
+  const byKey = {};
+  items.forEach(i => { byKey[i.key || `${i.name.toLowerCase()}__${i.orderUnit.toLowerCase()}`] = i; });
+
+  rawRows.forEach(r => {
+    const g = byKey[r.key];
+    if (!g) return;
+    let html = `Teilbedarf: <b>${r.benoetigt.toFixed(2)} ${r.ein}</b>`;
+    if (r.factor !== 1) {
+      html += ` <span style="color:var(--muted);font-size:11px">(= ${r.benOrd.toFixed(3)} ${r.orderUnit})</span>`;
+    }
+    html += `<br><span style="color:var(--muted);font-size:11px">Gesamt für ${encHtml(g.name)}: ${g.bestellOrd.toFixed(2)} ${g.orderUnit}`;
+    if (g.kulturen.length) html += ` · Kulturen: ${encHtml(g.kulturen.join(" + "))}`;
+    html += `</span>`;
+    if (g.lagerOrd > 0) html += `<div class="best-lager-info">${g.lagerText}</div>`;
+    r.resEl.innerHTML = html;
   });
 
   renderBestellErgebnis(items);
