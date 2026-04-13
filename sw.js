@@ -1,9 +1,10 @@
-const CACHE = "agroapp-v23";
+const CACHE = "agroapp-v24";
 const ASSETS = [
   "/agroapp/",
   "/agroapp/index.html",
-  "/agroapp/psm_data.js",
   "/agroapp/manifest.json",
+  "/agroapp/icon-192.png",
+  "/agroapp/icon-512.png",
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
 ];
 
@@ -22,7 +23,30 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
+  const req = e.request;
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match("/agroapp/index.html"))
+    );
+    return;
+  }
+
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+      return fetch(req).then(res => {
+        if (req.method === "GET" && req.url.startsWith(self.location.origin)) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+        }
+        return res;
+      });
+    })
   );
 });
