@@ -988,7 +988,7 @@
 <body>
 
 <header class="app-header">
-  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.27</span></h1>
+  <h1>🌱 AgroApp <span style="font-size:12px;font-weight:400;opacity:.65;letter-spacing:0">v1.28</span></h1>
   <p id="header-sub">Pflanzenschutz &amp; Bonitur</p>
 </header>
 
@@ -1364,6 +1364,12 @@
   <div class="sd-top-row">
     <button class="btn-add-main" onclick="showFeldForm()">+ Feld hinzufügen</button>
     <button class="btn-sec"      onclick="toggleMergeMode()">⬌ Zusammenführen</button>
+  </div>
+  <div style="margin:8px 0 10px">
+    <select class="sd-input" id="sd-feld-filter-kultur" onchange="renderSdFelder()" style="margin-bottom:0">
+      <option value="">Alle Kulturen</option>
+      <option value="__none__">Ohne Kultur</option>
+    </select>
   </div>
   <div id="felder-list"></div>
 </div>
@@ -2516,11 +2522,39 @@ function populateKulturSel(selId) {
 function renderSdFelder() {
   const felder = loadFelder();
   const list   = document.getElementById("felder-list");
+  const filterSel = document.getElementById("sd-feld-filter-kultur");
+  const filterVal = filterSel?.value || "";
+
+  if (filterSel) {
+    const fromFields = [...new Set(felder.map(f => f.kultur).filter(Boolean))];
+    const kulturVals = [...new Set([...allKulturen(), ...fromFields])].sort((a, b) => a.localeCompare(b, "de"));
+    const current = filterSel.value;
+    filterSel.innerHTML =
+      `<option value="">Alle Kulturen</option>` +
+      `<option value="__none__">Ohne Kultur</option>` +
+      kulturVals.map(k => `<option value="${k}">${k}</option>`).join("");
+    if ([...filterSel.options].some(o => o.value === current)) filterSel.value = current;
+  }
+
   if (!felder.length) {
     list.innerHTML = `<div class="empty"><p>Noch keine Felder angelegt</p></div>`;
     return;
   }
-  list.innerHTML = felder.map(f => {
+  const shown = felder.filter(f => {
+    if (!filterVal) return true;
+    if (filterVal === "__none__") return !f.kultur;
+    return (f.kultur || "") === filterVal;
+  });
+
+  if (!shown.length) {
+    const lbl = filterVal === "__none__" ? "Ohne Kultur" : filterVal;
+    list.innerHTML = `<div class="empty"><p>Keine Felder für Filter <strong>${encHtml(lbl)}</strong></p></div>`;
+    return;
+  }
+
+  list.innerHTML =
+    `<div class="lager-gesamt"><strong>${shown.length}</strong> von <strong>${felder.length}</strong> Feldern</div>` +
+    shown.map(f => {
     const name    = f.name || f;
     const flaeche = f.flaeche != null ? `${f.flaeche} ha` : "– ha";
     const kultur  = f.kultur || "–";
